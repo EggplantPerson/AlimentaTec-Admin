@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { Prisma } from '../../../generated/prisma/client.js';
 import * as productService from '../services/product.service.js';
 
