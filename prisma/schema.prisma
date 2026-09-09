@@ -6,24 +6,25 @@
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
+  importFileExtension = "ts"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-model Producto {
+model Product {
   id  Int @id @default(autoincrement())
-  nombre String @unique
-  descripcion String
-  imagen String
-  precio Int
+  name String @unique
+  description String
+  image_url String
+  price Int
 }
 
-model Pedido {
+model Order {
   uid String @id
   id Int @unique
-  productos String[]
+  products String[]
   total Int
-  horaPedido DateTime @default(now())
+  orderTime DateTime @default(now())
 }
