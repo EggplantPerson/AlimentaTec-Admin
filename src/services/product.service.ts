@@ -16,7 +16,7 @@ export async function createProduct(data: {name:string; description:string; cate
     return res.json();
 }
 
-export async function updateProduct(id: number, data: Partial<{name:string; description:string; image_url:string; price:number; }>) {
+export async function updateProduct(id: number, data: Partial<{name:string; description:string; image_url:string; price:number; available: boolean}>) {
     const res = await fetch(`${API_URL}/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json'},
