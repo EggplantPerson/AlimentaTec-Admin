@@ -19,6 +19,7 @@ model Product {
   description String
   image_url String
   price Int
+  available Boolean @default(true)
 }
 
 model Order {
@@ -27,4 +28,5 @@ model Order {
   products String[]
   total Int
   orderTime DateTime @default(now())
+  status String @default("En espera")
 }
