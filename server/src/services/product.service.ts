@@ -4,7 +4,7 @@ export const getAllProducts = () => {
     return prisma.product.findMany();
 };
 
-export const createProduct = (data: {name:string; description:string; image_url:string; price:number; }) => {
+export const createProduct = (data: {name:string; description:string; category: string; image_url:string; price:number; }) => {
     return prisma.product.create({ data });
 };
 

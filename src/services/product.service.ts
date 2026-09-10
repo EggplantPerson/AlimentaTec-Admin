@@ -6,7 +6,7 @@ export async function getProducts() {
     return res.json();
 }
 
-export async function createProduct(data: {name:string; description:string; image_url:string; price:number; }) {
+export async function createProduct(data: {name:string; description:string; category: string; image_url:string; price:number; }) {
     const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json'},
