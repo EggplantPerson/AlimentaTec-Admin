@@ -1,34 +1,121 @@
 import { useState, useMemo } from "react";
-import { Edit2, Search, X, Plus } from "lucide-react";
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { Edit2, Search, X, Plus, Check } from "lucide-react";
+import { getProducts, createProduct, updateProduct } from "./services/product.service";
 
 interface Producto {
   id: number;
-  nombre: string;
-  descripcion: string;
-  precio: string;
-  imagen: string;
+  name: string;
+  description: string;
+  price: string;
+  image_url: string;
 }
 
-interface ProductProps {
-  nombre: string;
-  descripcion: string;
-  precio: string;
-  imagen: string;
+interface ProductCardsProps {
+  producto: Producto;
+  onGuardarEdicion: (id: number, data: Partial <{ name: string; description: string; price: number; image_url: string }>) => void;
+  guardando: boolean;
 }
 
-function ProductCard({ nombre, descripcion, precio, imagen }: ProductProps) {
+function ProductCard({ producto, onGuardarEdicion, guardando }: ProductCardsProps) {
   const [disponible, setDisponible] = useState<boolean>(true);
+  const [editando, setEditando] = useState(false);
+  const [form, setForm] = useState({
+    name: producto.name,
+    description: producto.description,
+    price: String(producto.price),
+    image_url: producto.image_url,
+  });
+
+  function handleGuardar() {
+    const precioNumero = Number(form.price);
+    if (!form.name.trim() || isNaN(precioNumero)) {
+      alert("El nombre y el precio son obligatorios.")
+      return;
+    }
+
+    onGuardarEdicion(producto.id, {
+      name: form.name.trim(),
+      description: form.description.trim(),
+      price: precioNumero,
+      image_url: form.image_url.trim(),
+    });
+    setEditando(false)
+  }
+
+  function handleCancelar() {
+    setForm({
+      name: producto.name,
+      description: producto.description,
+      price: String(producto.price),
+      image_url: producto.image_url,
+    });
+    setEditando(false);
+  }
+
+  if (editando) {
+    return (
+      <div style={{ border: "1px solid #333", borderRadius: "8px", padding: "16px", width: "220px", display: "flex", flexDirection: "column", gap: "8px" }}>
+        <input
+          type="text"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          placeholder="Nombre"
+          style={{ padding: "6px", border: "1px solid #ccc", borderRadius: "6px" }}
+        />
+        <textarea
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          placeholder="Descripción"
+          style={{ padding: "6px", border: "1px solid #ccc", borderRadius: "6px", resize: "vertical", minHeight: "60px" }}
+        />
+        <input
+          type="number"
+          value={form.price}
+          onChange={(e) => setForm({ ...form, price: e.target.value })}
+          placeholder="Precio"
+          style={{ padding: "6px", border: "1px solid #ccc", borderRadius: "6px" }}
+        />
+        <input
+          type="text"
+          value={form.image_url}
+          onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+          placeholder="URL de imagen"
+          style={{ padding: "6px", border: "1px solid #ccc", borderRadius: "6px" }}
+        />
+
+        <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+          <button
+            onClick={handleGuardar}
+            disabled={guardando}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", padding: "6px", border: "none", borderRadius: "6px", background: "#333", color: "#fff", cursor: guardando ? "not-allowed" : "pointer", opacity: guardando ? 0.6 : 1 }}
+          >
+            <Check size={14} />
+            {guardando ? "Guardando..." : "Guardar"}
+          </button>
+          <button
+            onClick={handleCancelar}
+            disabled={guardando}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", padding: "6px", border: "1px solid #ccc", borderRadius: "6px", background: "#fff", cursor: "pointer" }}
+          >
+            <X size={14} />
+            Cancelar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ border: "1px solid #ccc", borderRadius: "8px", padding: "16px", width: "220px", display: "flex", flexDirection: "column" }}>
       <img
-        src={imagen}
-        alt={nombre}
+        src={producto.image_url}
+        alt={producto.name}
         style={{ width: "100%", height: "150px", objectFit: "cover", borderRadius: "6px" }}
       />
-      <h3>{nombre}</h3>
-      <p style={{ flexGrow: 1 }}>{descripcion}</p>
-      <p><strong>{precio}</strong></p>
+      <h3>{producto.name}</h3>
+      <p style={{ flexGrow: 1 }}>{producto.description}</p>
+      <p><strong>${producto.price}</strong></p>
 
       <div>
         <label>
@@ -43,51 +130,64 @@ function ProductCard({ nombre, descripcion, precio, imagen }: ProductProps) {
       </div>
 
       <p>Estado: {disponible ? "Disponible" : "Agotado"}</p>
+
+      <button
+        onClick={() => setEditando(true)}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "6px", border: "1px solid #333", borderRadius: "6px", background: "#fff", cursor: "pointer", marginTop: "8px" }}
+      >
+        <Edit2 size={14} />
+        Editar
+      </button>
     </div>
   );
 }
 
-const productosIniciales: Producto[] = [
-  {
-    id: 1,
-    nombre: "Sándwich",
-    descripcion: "Delicioso sándwich de pavo y queso con vegetales frescos.",
-    precio: "$199.00",
-    imagen: "https://foodtrucksworld.com/wp-content/uploads/2024/01/Sandwiches-1024x683.jpg"
-  },
-  {
-    id: 2,
-    nombre: "Hamburguesa",
-    descripcion: "Clásica hamburguesa de res con queso cheddar, lechuga y tomate.",
-    precio: "$250.00",
-    imagen: "https://www.cnature.es/wp-content/uploads/2021/12/hamburguesa-con-guacamole.jpg"
-  },
-  {
-    id: 3,
-    nombre: "Pizza",
-    descripcion: "Rica pizza de peperoni.",
-    precio: "$299.00",
-    imagen: "https://media.mdzol.com/p/810cccf2a4e7c1b9cb529665e5bffeae/adjuntos/373/imagenes/001/035/0001035468/1200x675/smart/el-secreto-una-pizza-pepperoni-perfecta-foto-shutterstock.png"
-  },
-  {
-    id: 4,
-    nombre: "Croissant",
-    descripcion: "Rico croissant de jamon y queso.",
-    precio: "$160.00",
-    imagen: "https://tse2.mm.bing.net/th/id/OIP.IdcHgYHrrqxo_Zji13VifQHaEK?r=0&rs=1&pid=ImgDetMain&o=7&rm=3"
-  }
-];
-
 export default function AdminMenu() {
+  const queryClient = useQueryClient();
   const [busqueda, setBusqueda] = useState("");
-  const [productos, setProductos] = useState<Producto[]>(productosIniciales);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [nuevoProducto, setNuevoProducto] = useState({
-    nombre: "",
-    descripcion: "",
-    precio: "",
-    imagen: ""
+    name: "",
+    description: "",
+    price: "",
+    image_url: ""
   });
+
+  const {
+    data: productos = [],
+    isLoading,
+    isError,
+  } = useQuery<Producto[]>({
+    queryKey: ['products'],
+    queryFn: getProducts,
+  })
+
+const crearMutation = useMutation({
+  mutationFn: createProduct,
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['products']});
+    setNuevoProducto({ name: "", description: "", price: "", image_url: ""});
+    setMostrarForm(false);
+  },
+  onError: () => {
+    alert("Error al crear el producto. Intente nuevamente.");
+  },
+});
+
+  const editarMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<{ name: string; description: string; price: number; image_url: string }> }) =>
+      updateProduct(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+    onError: () => {
+      alert("Ocurrió un error al editar el producto. Intenta de nuevo.");
+    },
+  });
+
+  function handleGuardarEdicion(id: number, data: Partial <{ name: string; description: string; price: number; image_url: string }>) {
+    editarMutation.mutate({ id, data});
+  }
 
   const normalizar = (texto: string) =>
     texto
@@ -98,77 +198,54 @@ export default function AdminMenu() {
   const productosFiltrados = useMemo(() => {
     const q = normalizar(busqueda.trim());
     if (!q) return productos;
-    return productos.filter((p) => normalizar(p.nombre).includes(q));
+    return productos.filter((p) => normalizar(p.name).includes(q));
   }, [busqueda, productos]);
 
-  // 👇 Función para crear un producto nuevo
+  //Función para crear un producto nuevo
   function handleCrearProducto(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!nuevoProducto.nombre.trim() || !nuevoProducto.precio.trim()) {
-      alert("El nombre y el precio son obligatorios.");
+    const nombreLimpio = nuevoProducto.name.trim();
+    const precioNumero = Number(nuevoProducto.price);
+
+    if (!nombreLimpio || !nuevoProducto.price.trim() || isNaN(precioNumero)) {
+      alert("El nombre y el precio son obligatorios.")
       return;
     }
 
-    const producto: Producto = {
-      id: Date.now(), // id simple y único basado en timestamp
-      nombre: nuevoProducto.nombre.trim(),
-      descripcion: nuevoProducto.descripcion.trim(),
-      precio: nuevoProducto.precio.trim(),
-      imagen: nuevoProducto.imagen.trim() || "https://via.placeholder.com/220x150?text=Sin+imagen"
-    };
+    crearMutation.mutate({
+      name: nombreLimpio,
+      description: nuevoProducto.description.trim(),
+      price: precioNumero,
+      image_url: nuevoProducto.image_url.trim() || "https://via.placeholder.com/220x150?text=Sin+imagen",
+    });
 
-    setProductos((prev) => [...prev, producto]);
-
-    // Reiniciar el formulario
-    setNuevoProducto({ nombre: "", descripcion: "", precio: "", imagen: "" });
-    setMostrarForm(false);
   }
 
-  return (
+   return (
     <div style={{ padding: "20px", fontFamily: "sans-serif", maxWidth: "1000px", margin: "0 auto" }}>
-      {/* Encabezado con título y botones */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <h1 style={{ color: "#333", margin: 0 }}>Administración de Menú</h1>
 
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            onClick={() => setMostrarForm((prev) => !prev)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 12px",
-              border: "1px solid #333",
-              borderRadius: "6px",
-              background: mostrarForm ? "#333" : "#fff",
-              color: mostrarForm ? "#fff" : "#333",
-              cursor: "pointer",
-            }}
-          >
-            <Plus size={16} />
-            {mostrarForm ? "Cancelar" : "Crear producto"}
-          </button>
-
-          <button
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 12px",
-              border: "1px solid #333",
-              borderRadius: "6px",
-              background: "#fff",
-              cursor: "pointer",
-            }}
-          >
-            <Edit2 size={16} />
-            Editar
-          </button>
-        </div>
+        <button
+          onClick={() => setMostrarForm((prev) => !prev)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "8px 12px",
+            border: "1px solid #333",
+            borderRadius: "6px",
+            background: mostrarForm ? "#333" : "#fff",
+            color: mostrarForm ? "#fff" : "#333",
+            cursor: "pointer",
+          }}
+        >
+          <Plus size={16} />
+          {mostrarForm ? "Cancelar" : "Crear producto"}
+        </button>
       </div>
 
-      {/* Formulario para crear producto */}
       {mostrarForm && (
         <form
           onSubmit={handleCrearProducto}
@@ -188,64 +265,50 @@ export default function AdminMenu() {
           <input
             type="text"
             placeholder="Nombre*"
-            value={nuevoProducto.nombre}
-            onChange={(e) => setNuevoProducto({ ...nuevoProducto, nombre: e.target.value })}
+            value={nuevoProducto.name}
+            onChange={(e) => setNuevoProducto({ ...nuevoProducto, name: e.target.value })}
             style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }}
           />
           <textarea
             placeholder="Descripción"
-            value={nuevoProducto.descripcion}
-            onChange={(e) => setNuevoProducto({ ...nuevoProducto, descripcion: e.target.value })}
+            value={nuevoProducto.description}
+            onChange={(e) => setNuevoProducto({ ...nuevoProducto, description: e.target.value })}
             style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px", resize: "vertical" }}
           />
           <input
-            type="text"
-            placeholder="Precio* (ej. $199.00)"
-            value={nuevoProducto.precio}
-            onChange={(e) => setNuevoProducto({ ...nuevoProducto, precio: e.target.value })}
+            type="number"
+            placeholder="Precio* (ej. 45)"
+            value={nuevoProducto.price}
+            onChange={(e) => setNuevoProducto({ ...nuevoProducto, price: e.target.value })}
             style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }}
           />
           <input
             type="text"
             placeholder="URL de imagen"
-            value={nuevoProducto.imagen}
-            onChange={(e) => setNuevoProducto({ ...nuevoProducto, imagen: e.target.value })}
+            value={nuevoProducto.image_url}
+            onChange={(e) => setNuevoProducto({ ...nuevoProducto, image_url: e.target.value })}
             style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }}
           />
           <button
             type="submit"
+            disabled={crearMutation.isPending}
             style={{
               padding: "10px",
               border: "none",
               borderRadius: "6px",
               background: "#333",
               color: "#fff",
-              cursor: "pointer",
+              cursor: crearMutation.isPending ? "not-allowed" : "pointer",
+              opacity: crearMutation.isPending ? 0.6 : 1,
             }}
           >
-            Guardar producto
+            {crearMutation.isPending ? "Guardando..." : "Guardar producto"}
           </button>
         </form>
       )}
 
-      {/* Barra de búsqueda */}
-      <div
-        style={{
-          position: "relative",
-          maxWidth: "360px",
-          margin: "0 auto 30px auto",
-        }}
-      >
-        <Search
-          size={18}
-          style={{
-            position: "absolute",
-            left: "12px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            color: "#888",
-          }}
-        />
+      <div style={{ position: "relative", maxWidth: "360px", margin: "0 auto 30px auto" }}>
+        <Search size={18} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#888" }} />
         <input
           type="text"
           value={busqueda}
@@ -265,25 +328,18 @@ export default function AdminMenu() {
           <button
             onClick={() => setBusqueda("")}
             aria-label="Limpiar búsqueda"
-            style={{
-              position: "absolute",
-              right: "10px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "#888",
-              display: "flex",
-              alignItems: "center",
-            }}
+            style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#888", display: "flex", alignItems: "center" }}
           >
             <X size={16} />
           </button>
         )}
       </div>
 
-      {productosFiltrados.length === 0 ? (
+      {isLoading ? (
+        <p style={{ textAlign: "center", color: "#888" }}>Cargando productos...</p>
+      ) : isError ? (
+        <p style={{ textAlign: "center", color: "red" }}>No se pudieron cargar los productos.</p>
+      ) : productosFiltrados.length === 0 ? (
         <p style={{ textAlign: "center", color: "#888" }}>
           No se encontraron productos que coincidan con "{busqueda}".
         </p>
@@ -292,10 +348,9 @@ export default function AdminMenu() {
           {productosFiltrados.map((prod) => (
             <ProductCard
               key={prod.id}
-              nombre={prod.nombre}
-              descripcion={prod.descripcion}
-              precio={prod.precio}
-              imagen={prod.imagen}
+              producto={prod}
+              onGuardarEdicion={handleGuardarEdicion}
+              guardando={editarMutation.isPending}
             />
           ))}
         </div>

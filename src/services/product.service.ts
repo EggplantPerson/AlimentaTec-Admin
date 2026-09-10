@@ -22,6 +22,8 @@ export async function updateProduct(id: number, data: Partial<{name:string; desc
         headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
+    if (!res.ok) throw new Error('Failed to update product');
+    return res.json();
 }
 
 export async function deleteProduct(id: number) {
