@@ -17,6 +17,7 @@ model Product {
   id  Int @id @default(autoincrement())
   name String @unique
   description String
+  category String
   image_url String
   price Int
   available Boolean @default(true)
