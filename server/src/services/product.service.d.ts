@@ -27,8 +27,10 @@ export declare const createProduct: (data: {
 export declare const updateProduct: (id: number, data: Partial<{
     name: string;
     description: string;
+    category: string;
     image_url: string;
     price: number;
+    available: boolean;
 }>) => import("../../../generated/prisma/models.js").Prisma__ProductClient<{
     name: string;
     description: string;

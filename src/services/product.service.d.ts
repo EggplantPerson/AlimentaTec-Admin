@@ -9,8 +9,10 @@ export declare function createProduct(data: {
 export declare function updateProduct(id: number, data: Partial<{
     name: string;
     description: string;
+    category: string;
     image_url: string;
     price: number;
+    available: boolean;
 }>): Promise<any>;
 export declare function deleteProduct(id: number): Promise<void>;
 //# sourceMappingURL=product.service.d.ts.map
