@@ -2,13 +2,13 @@ const API_URL = `${import.meta.env.VITE_API_URL}/orders`;
 
 export async function getOrders() {
     const res = await fetch(API_URL);
-    if (!res.ok) throw new Error('Failed to fetch products');
+    if (!res.ok) throw new Error('Failed to fetch orders');
     return res.json();
 }
 
 export async function getOrder(uid: string) {
     const res = await fetch(`${API_URL}/${uid}`);
-    if (!res.ok) throw new Error('Failed to fetch product');
+    if (!res.ok) throw new Error('Failed to fetch order');
     return res.json();
 }
 
