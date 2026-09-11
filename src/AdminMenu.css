@@ -319,6 +319,12 @@ button:focus-visible {
   z-index: 1;
 }
 
+.ticket.is-editing {
+  grid-column: 1 / -1;
+  max-width: 480px;
+  overflow: visible;
+}
+
 .ticket-image {
   width: 100%;
   height: 150px;
@@ -397,15 +403,38 @@ button:focus-visible {
   color: var(--out);
 }
 
+/* Footer actions (Editar / Eliminar) */
+
 .ticket-footer {
   margin-top: 10px;
   display: flex;
-  justify-content: flex-end;
+  gap: 8px;
 }
 
 .ticket-footer .btn {
-  width: 100%;
+  flex: 1;
   justify-content: center;
+}
+
+.ticket-footer .btn-danger-outline {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--out);
+  color: var(--out);
+}
+
+.ticket-footer .btn-danger-outline:hover {
+  background: var(--out-bg);
+}
+
+.btn-danger {
+  background: var(--out);
+  color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #962f2f;
 }
 
 /* Edit mode */
