@@ -1,4 +1,4 @@
-const API_URL = '/api/orders';
+const API_URL = `${import.meta.env.VITE_API_URL}/orders`;
 
 export async function getOrders() {
     const res = await fetch(API_URL);
