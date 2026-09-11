@@ -9,6 +9,7 @@ export async function getOrders() {
 export async function getOrder(uid: string) {
     const res = await fetch(`${API_URL}/${uid}`);
     if (!res.ok) throw new Error('Failed to fetch product');
+    return res.json();
 }
 
 export async function createOrder(data: {uid: string; id: number; products: string[]; total: number}) {
@@ -17,7 +18,8 @@ export async function createOrder(data: {uid: string; id: number; products: stri
         headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Failed to create Order')
+    if (!res.ok) throw new Error('Failed to create Order');
+    return res.json();
 }
 
 export async function updateOrder(uid: string, data: Partial<{ products: string[]; status: string; total: number }>) {
