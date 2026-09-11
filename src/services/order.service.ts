@@ -24,7 +24,7 @@ export async function createOrder(data: {uid: string; id: number; products: stri
 
 export async function updateOrder(uid: string, data: Partial<{ products: string[]; status: string; total: number }>) {
     const res = await fetch(`${API_URL}/${uid}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
