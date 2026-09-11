@@ -30,4 +30,5 @@ model Order {
   total Int
   orderTime DateTime @default(now())
   status String @default("En espera")
+  notes String?
 }

@@ -9,6 +9,7 @@ interface Order {
   total: number;
   orderTime: string;
   status: string;
+  notes?: string
 }
 
 // Lista de estados en orden. El pedido solo avanza, nunca retrocede.
