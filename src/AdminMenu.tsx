@@ -3,50 +3,61 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Edit2, Search, X, Plus, Check } from "lucide-react";
 import { getProducts, createProduct, updateProduct } from "./services/product.service";
 
+const CATEGORIAS = ["Comidas", "Bebidas", "Snacks"] as const;
+type Categoria = typeof CATEGORIAS[number]; 
+
 interface Producto {
   id: number;
   name: string;
   description: string;
-  price: string;
+  category: string;
+  price: number;
   image_url: string;
+  available: boolean;
 }
 
-interface ProductCardsProps {
+interface ProductCardProps {
   producto: Producto;
-  onGuardarEdicion: (id: number, data: Partial <{ name: string; description: string; price: number; image_url: string }>) => void;
+  onGuardarEdicion: (id: number, data: Partial<{ name: string; description: string; category: string; price: number; image_url: string; available: boolean }>) => void;
   guardando: boolean;
 }
 
-function ProductCard({ producto, onGuardarEdicion, guardando }: ProductCardsProps) {
-  const [disponible, setDisponible] = useState<boolean>(true);
+function ProductCard({ producto, onGuardarEdicion, guardando }: ProductCardProps) {
   const [editando, setEditando] = useState(false);
   const [form, setForm] = useState({
     name: producto.name,
     description: producto.description,
+    category: producto.category,
     price: String(producto.price),
     image_url: producto.image_url,
   });
 
+  function handleCambiarDisponibilidad(nuevoValor: boolean) {
+    onGuardarEdicion(producto.id, { available: nuevoValor });
+  }
+
   function handleGuardar() {
     const precioNumero = Number(form.price);
-    if (!form.name.trim() || isNaN(precioNumero)) {
-      alert("El nombre y el precio son obligatorios.")
+    if (!form.name.trim() || !form.category.trim() || isNaN(precioNumero)) {
+      alert("El nombre, la categoría y el precio (numérico) son obligatorios.");
       return;
     }
 
     onGuardarEdicion(producto.id, {
       name: form.name.trim(),
       description: form.description.trim(),
+      category: form.category.trim(),
       price: precioNumero,
       image_url: form.image_url.trim(),
     });
-    setEditando(false)
+    setEditando(false);
   }
 
   function handleCancelar() {
     setForm({
       name: producto.name,
       description: producto.description,
+      category: producto.category,
       price: String(producto.price),
       image_url: producto.image_url,
     });
@@ -69,6 +80,15 @@ function ProductCard({ producto, onGuardarEdicion, guardando }: ProductCardsProp
           placeholder="Descripción"
           style={{ padding: "6px", border: "1px solid #ccc", borderRadius: "6px", resize: "vertical", minHeight: "60px" }}
         />
+        <select
+          value={form.category}
+          onChange={(e) => setForm({ ...form, category: e.target.value })}
+          style={{ padding: "6px", border: "1px solid #ccc", borderRadius: "6px" }}
+        >
+          {CATEGORIAS.map((cat) => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
         <input
           type="number"
           value={form.price}
@@ -113,23 +133,36 @@ function ProductCard({ producto, onGuardarEdicion, guardando }: ProductCardsProp
         alt={producto.name}
         style={{ width: "100%", height: "150px", objectFit: "cover", borderRadius: "6px" }}
       />
-      <h3>{producto.name}</h3>
+      <span style={{ fontSize: "12px", color: "#888", textTransform: "uppercase", letterSpacing: "0.5px", marginTop: "6px" }}>
+        {producto.category}
+      </span>
+      <h3 style={{ margin: "4px 0" }}>{producto.name}</h3>
       <p style={{ flexGrow: 1 }}>{producto.description}</p>
       <p><strong>${producto.price}</strong></p>
 
       <div>
         <label>
-          <input type="radio" checked={disponible} onChange={() => setDisponible(true)} />
+          <input
+            type="radio"
+            checked={producto.available}
+            onChange={() => handleCambiarDisponibilidad(true)}
+            disabled={guardando}
+          />
           Disponible
         </label>
 
         <label style={{ marginLeft: "10px" }}>
-          <input type="radio" checked={!disponible} onChange={() => setDisponible(false)} />
+          <input
+            type="radio"
+            checked={!producto.available}
+            onChange={() => handleCambiarDisponibilidad(false)}
+            disabled={guardando}
+          />
           Agotado
         </label>
       </div>
 
-      <p>Estado: {disponible ? "Disponible" : "Agotado"}</p>
+      <p>Estado: {producto.available ? "Disponible" : "Agotado"}</p>
 
       <button
         onClick={() => setEditando(true)}
@@ -149,6 +182,7 @@ export default function AdminMenu() {
   const [nuevoProducto, setNuevoProducto] = useState({
     name: "",
     description: "",
+    category: "",
     price: "",
     image_url: ""
   });
@@ -160,40 +194,40 @@ export default function AdminMenu() {
   } = useQuery<Producto[]>({
     queryKey: ['products'],
     queryFn: getProducts,
-  })
+  });
 
-const crearMutation = useMutation({
-  mutationFn: createProduct,
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['products']});
-    setNuevoProducto({ name: "", description: "", price: "", image_url: ""});
-    setMostrarForm(false);
-  },
-  onError: () => {
-    alert("Error al crear el producto. Intente nuevamente.");
-  },
-});
+  const crearMutation = useMutation({
+    mutationFn: createProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      setNuevoProducto({ name: "", description: "", category: "", price: "", image_url: "" });
+      setMostrarForm(false);
+    },
+    onError: () => {
+      alert("Ocurrió un error al crear el producto. Intenta de nuevo.");
+    },
+  });
 
   const editarMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<{ name: string; description: string; price: number; image_url: string }> }) =>
+    mutationFn: ({ id, data }: { id: number; data: Partial<{ name: string; description: string; category: string; price: number; image_url: string; available: boolean }> }) =>
       updateProduct(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },
     onError: () => {
-      alert("Ocurrió un error al editar el producto. Intenta de nuevo.");
+      alert("Ocurrió un error al actualizar el producto. Intenta de nuevo.");
     },
   });
 
-  function handleGuardarEdicion(id: number, data: Partial <{ name: string; description: string; price: number; image_url: string }>) {
-    editarMutation.mutate({ id, data});
+  function handleGuardarEdicion(id: number, data: Partial<{ name: string; description: string; category: string; price: number; image_url: string; available: boolean }>) {
+    editarMutation.mutate({ id, data });
   }
 
   const normalizar = (texto: string) =>
     texto
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, ""); // quita acentos/diacríticos
+      .replace(/[\u0300-\u036f]/g, "");
 
   const productosFiltrados = useMemo(() => {
     const q = normalizar(busqueda.trim());
@@ -201,28 +235,28 @@ const crearMutation = useMutation({
     return productos.filter((p) => normalizar(p.name).includes(q));
   }, [busqueda, productos]);
 
-  //Función para crear un producto nuevo
   function handleCrearProducto(e: React.FormEvent) {
     e.preventDefault();
 
     const nombreLimpio = nuevoProducto.name.trim();
+    const categoriaLimpia = nuevoProducto.category.trim();
     const precioNumero = Number(nuevoProducto.price);
 
-    if (!nombreLimpio || !nuevoProducto.price.trim() || isNaN(precioNumero)) {
-      alert("El nombre y el precio son obligatorios.")
+    if (!nombreLimpio || !categoriaLimpia || !nuevoProducto.price.trim() || isNaN(precioNumero)) {
+      alert("El nombre, la categoría y el precio (numérico) son obligatorios.");
       return;
     }
 
     crearMutation.mutate({
       name: nombreLimpio,
       description: nuevoProducto.description.trim(),
+      category: categoriaLimpia,
       price: precioNumero,
       image_url: nuevoProducto.image_url.trim() || "https://via.placeholder.com/220x150?text=Sin+imagen",
     });
-
   }
 
-   return (
+  return (
     <div style={{ padding: "20px", fontFamily: "sans-serif", maxWidth: "1000px", margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <h1 style={{ color: "#333", margin: 0 }}>Administración de Menú</h1>
@@ -275,6 +309,16 @@ const crearMutation = useMutation({
             onChange={(e) => setNuevoProducto({ ...nuevoProducto, description: e.target.value })}
             style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px", resize: "vertical" }}
           />
+          <select
+            value={nuevoProducto.category}
+            onChange={(e) => setNuevoProducto({ ...nuevoProducto, category: e.target.value })}
+            style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "6px" }}
+          >
+            <option value="">Selecciona una categoría*</option>
+            {CATEGORIAS.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+             ))}
+          </select>
           <input
             type="number"
             placeholder="Precio* (ej. 45)"
