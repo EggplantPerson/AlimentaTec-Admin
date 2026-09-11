@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { getOrders, updateOrder} from "./services/order.service";
+import { getOrders, updateOrder } from "./services/order.service";
+import { getProducts } from "./services/product.service";
 import "./AdminPedidos.css";
 
 interface Order {
@@ -11,6 +12,11 @@ interface Order {
   status: string;
 }
 
+interface Producto {
+  id: number;
+  name: string;
+}
+
 // Lista de estados en orden. El pedido solo avanza, nunca retrocede.
 // Verificar si hay estado de cancelacion
 const ESTADOS = ["En espera", "En preparacion", "Completado", "Entregado"];
@@ -20,15 +26,29 @@ function estadoIndex(status: string) {
   return i === -1 ? 0 : i;
 }
 
+// Agrupa los ids repetidos del arreglo products y los convierte a { nombre, cantidad }
+function resolverItems(productIds: string[], nombresPorId: Record<number, string>) {
+  const conteo = new Map<string, number>();
+  productIds.forEach((pid) => conteo.set(pid, (conteo.get(pid) ?? 0) + 1));
+
+  return Array.from(conteo.entries()).map(([pid, cantidad]) => ({
+    id: pid,
+    nombre: nombresPorId[Number(pid)] ?? `Producto #${pid}`,
+    cantidad,
+  }));
+}
+
 interface OrderCardProps {
   order: Order;
+  nombresPorId: Record<number, string>;
   onAvanzar: (uid: string, siguienteEstado: string) => void;
   guardando: boolean;
 }
 
-function OrderCard({ order, onAvanzar, guardando }: OrderCardProps) {
+function OrderCard({ order, nombresPorId, onAvanzar, guardando }: OrderCardProps) {
   const indice = estadoIndex(order.status);
   const esUltimoEstado = indice === ESTADOS.length - 1;
+  const items = resolverItems(order.products ?? [], nombresPorId);
 
   function avanzarEstado() {
     if (indice < ESTADOS.length - 1) {
@@ -41,8 +61,11 @@ function OrderCard({ order, onAvanzar, guardando }: OrderCardProps) {
       <span className="pedido-num">Pedido #{order.id}</span>
 
       <ul className="pedido-items">
-        {(order.products ?? []).map((item, i) => (
-          <li key={i}>{item}</li>
+        {items.map((item) => (
+          <li key={item.id}>
+            <span>{item.nombre}</span>
+            {item.cantidad > 1 && <span className="pedido-item-qty">×{item.cantidad}</span>}
+          </li>
         ))}
       </ul>
 
@@ -65,7 +88,6 @@ function OrderCard({ order, onAvanzar, guardando }: OrderCardProps) {
   );
 }
 
-
 export default function AdminPedidos() {
   const queryClient = useQueryClient();
 
@@ -78,16 +100,26 @@ export default function AdminPedidos() {
     queryFn: getOrders,
   });
 
+  const { data: productos = [] } = useQuery<Producto[]>({
+    queryKey: ["products"],
+    queryFn: getProducts,
+  });
+
+  const nombresPorId: Record<number, string> = {};
+  productos.forEach((p) => {
+    nombresPorId[p.id] = p.name;
+  });
+
   const actualizarMutation = useMutation({
-    mutationFn: ({ uid, status}: { uid: string; status: string }) =>
-      updateOrder(uid, {status}),
+    mutationFn: ({ uid, status }: { uid: string; status: string }) =>
+      updateOrder(uid, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
   });
 
-  function handleAvanzar(uid: string, siguienteEstado: string){
-    actualizarMutation.mutate({uid, status: siguienteEstado});
+  function handleAvanzar(uid: string, siguienteEstado: string) {
+    actualizarMutation.mutate({ uid, status: siguienteEstado });
   }
 
   return (
@@ -110,6 +142,7 @@ export default function AdminPedidos() {
               <OrderCard
                 key={order.uid}
                 order={order}
+                nombresPorId={nombresPorId}
                 onAvanzar={handleAvanzar}
                 guardando={
                   actualizarMutation.isPending &&

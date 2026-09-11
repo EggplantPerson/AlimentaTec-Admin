@@ -1,102 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
-
-.pedidos-admin {
-  --bg: #F6F7F2;
-  --surface: #FFFFFF;
-  --ink: #1C2622;
-  --ink-soft: #5B6B62;
-  --line: #DDE2D8;
-  --accent: #C8862B;
-  --accent-dark: #A86F20;
-  --wait: #8A6D3B;
-  --wait-bg: #F4E9D8;
-  --prep: #C8862B;
-  --prep-bg: #FBF0DE;
-  --done: #2F6F5E;
-  --done-bg: #E4F1EC;
-  --delivered: #5B6B62;
-  --delivered-bg: #E7E9E4;
-  --radius: 10px;
-  --radius-sm: 6px;
-  --shadow: 0 1px 2px rgba(28, 38, 34, 0.06), 0 4px 14px rgba(28, 38, 34, 0.05);
-
-  min-height: 100vh;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: 'Inter', system-ui, sans-serif;
-  padding: 32px 24px 64px;
-}
-
-.pedidos-admin * {
-  box-sizing: border-box;
-}
-
-.pedidos-admin__inner {
-  max-width: 1040px;
-  margin: 0 auto;
-}
-
-.pedidos-header {
-  margin-bottom: 24px;
-}
-
-.pedidos-header h1 {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  margin: 0 0 4px;
-}
-
-.pedidos-header p {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 14px;
-}
-
-.pedidos-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 18px;
-}
-
-.pedido-ticket {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 16px 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  position: relative;
-}
-
-.pedido-ticket::before {
-  content: '';
-  position: absolute;
-  top: -7px;
-  left: 20px;
-  width: 14px;
-  height: 14px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 50%;
-}
-
-.pedido-num {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink-soft);
-}
-
-.pedido-ticket h3 {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 17px;
-  font-weight: 600;
-  margin: 0;
-}
-
 .pedido-items {
   list-style: none;
   margin: 0;
@@ -111,6 +12,10 @@
   color: var(--ink);
   padding-left: 14px;
   position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 .pedido-items li::before {
@@ -124,102 +29,12 @@
   background: var(--accent);
 }
 
-.pedido-total {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 16px;
-  font-weight: 700;
-  margin: 2px 0 0;
-}
-
-.pedidos-status {
-  text-align: center;
-  color: var(--ink-soft);
-  font-size: 14px;
-  padding: 40px 0;
-}
-
-.pedidos-status.is-error {
-  color: #B33F3F;
-}
-
-/* status badge */
-
-.pedido-badge {
-  align-self: flex-start;
-  font-family: 'Space Grotesk', sans-serif;
+.pedido-item-qty {
   font-size: 12px;
   font-weight: 600;
-  padding: 5px 12px;
+  color: var(--accent-dark);
+  background: var(--prep-bg);
   border-radius: 999px;
-  margin-top: 2px;
-}
-
-.pedido-badge.estado-0 { background: var(--wait-bg); color: var(--wait); }
-.pedido-badge.estado-1 { background: var(--prep-bg); color: var(--prep); }
-.pedido-badge.estado-2 { background: var(--done-bg); color: var(--done); }
-.pedido-badge.estado-3 { background: var(--delivered-bg); color: var(--delivered); }
-
-/* progress track */
-
-.pedido-track {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin: 6px 0 4px;
-}
-
-.pedido-track .paso {
-  height: 4px;
-  flex: 1;
-  border-radius: 2px;
-  background: var(--line);
-}
-
-.pedido-track .paso.completo {
-  background: var(--accent);
-}
-
-.pedido-actions {
-  margin-top: 6px;
-}
-
-.pedido-btn {
-  width: 100%;
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 600;
-  font-size: 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #fff;
-  padding: 10px 14px;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
-}
-
-.pedido-btn:hover:not(:disabled) {
-  background: var(--accent-dark);
-  border-color: var(--accent-dark);
-}
-
-.pedido-btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.pedido-btn:disabled {
-  background: var(--delivered-bg);
-  border-color: var(--line);
-  color: var(--ink-soft);
-  cursor: not-allowed;
-}
-
-.pedido-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pedidos-admin * {
-    transition: none !important;
-  }
+  padding: 1px 8px;
+  flex-shrink: 0;
 }
