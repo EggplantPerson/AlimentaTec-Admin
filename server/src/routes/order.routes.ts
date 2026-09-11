@@ -8,3 +8,5 @@ router.get('/:uid', orderController.getOrderByUid);
 router.post('/', orderController.createOrder);
 router.put('/:uid', orderController.updateOrder);
 router.delete('/:uid', orderController.deleteOrder);
+
+export default router;
