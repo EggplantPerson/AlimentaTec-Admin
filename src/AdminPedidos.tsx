@@ -10,6 +10,7 @@ interface Order {
   total: number;
   orderTime: string;
   status: string;
+  notes?: string
 }
 
 interface Producto {
