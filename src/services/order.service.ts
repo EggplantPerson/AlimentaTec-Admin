@@ -28,7 +28,8 @@ export async function updateOrder(uid: string, data: Partial<{ products: string[
         headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Failed to update order')
+    if (!res.ok) throw new Error('Failed to update order');
+    return res.json();
 }
 
 export async function deleteOrder(uid: string) {
