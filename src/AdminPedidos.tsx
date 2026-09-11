@@ -46,6 +46,8 @@ interface OrderCardProps {
   guardando: boolean;
 }
 
+
+
 function OrderCard({ order, nombresPorId, onAvanzar, guardando }: OrderCardProps) {
   const indice = estadoIndex(order.status);
   const esUltimoEstado = indice === ESTADOS.length - 1;
@@ -101,6 +103,8 @@ export default function AdminPedidos() {
     queryFn: getOrders,
   });
 
+  const pedidosVisibles = pedidos.filter((order) =>  order.status !== "Entregado");
+
   const { data: productos = [] } = useQuery<Producto[]>({
     queryKey: ["products"],
     queryFn: getProducts,
@@ -135,11 +139,11 @@ export default function AdminPedidos() {
           <p className="pedidos-status">Cargando pedidos...</p>
         ) : isError ? (
           <p className="pedidos-status is-error">No se pudieron cargar los pedidos.</p>
-        ) : pedidos.length === 0 ? (
+        ) : pedidosVisibles.length === 0 ? (
           <p className="pedidos-status">No hay pedidos por ahora.</p>
         ) : (
           <div className="pedidos-grid">
-            {pedidos.map((order) => (
+            {pedidosVisibles.map((order) => (
               <OrderCard
                 key={order.uid}
                 order={order}
