@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { Edit2, Search, X, Plus, Check } from "lucide-react";
-import { getProducts, createProduct, updateProduct } from "./services/product.service";
+import { Edit2, Search, X, Plus, Check, Trash2 } from "lucide-react";
+import { getProducts, createProduct, updateProduct, deleteProduct } from "./services/product.service";
 import "./AdminMenu.css";
 
 const CATEGORIAS = ["Comidas", "Bebidas", "Snacks"] as const;
@@ -20,12 +20,15 @@ interface Producto {
 interface ProductCardProps {
   producto: Producto;
   onGuardarEdicion: (id: number, data: Partial<{ name: string; description: string; category: string; price: number; image_url: string; available: boolean }>) => void;
+  onEliminar: (id: number) => void;
   guardando: boolean;
+  eliminando: boolean;
 }
 
-function ProductCard({ producto, onGuardarEdicion, guardando }: ProductCardProps) {
+function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, eliminando }: ProductCardProps) {
   const [editando, setEditando] = useState(false);
   const [editError, setEditError] = useState("");
+  const [confirmarBorrado, setConfirmarBorrado] = useState(false);
   const [form, setForm] = useState({
     name: producto.name,
     description: producto.description,
@@ -70,7 +73,7 @@ function ProductCard({ producto, onGuardarEdicion, guardando }: ProductCardProps
 
   if (editando) {
     return (
-      <div className="ticket">
+      <div className="ticket is-editing">
         <div className="ticket-edit">
           <div className="field">
             <label>Nombre</label>
@@ -167,10 +170,39 @@ function ProductCard({ producto, onGuardarEdicion, guardando }: ProductCardProps
         </div>
 
         <div className="ticket-footer">
-          <button className="btn btn-secondary" onClick={() => setEditando(true)}>
-            <Edit2 size={14} />
-            Editar
-          </button>
+          {confirmarBorrado ? (
+            <>
+              <button
+                className="btn btn-danger"
+                onClick={() => onEliminar(producto.id)}
+                disabled={eliminando}
+              >
+                <Trash2 size={14} />
+                {eliminando ? "Eliminando..." : "Confirmar"}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setConfirmarBorrado(false)}
+                disabled={eliminando}
+              >
+                <X size={14} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-secondary" onClick={() => setEditando(true)}>
+                <Edit2 size={14} />
+                Editar
+              </button>
+              <button
+                className="btn btn-danger-outline"
+                onClick={() => setConfirmarBorrado(true)}
+                aria-label={`Eliminar ${producto.name}`}
+              >
+                <Trash2 size={14} />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -224,8 +256,22 @@ export default function AdminMenu() {
     },
   });
 
+  const eliminarMutation = useMutation({
+    mutationFn: (id: number) => deleteProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+    onError: () => {
+      alert("Ocurrió un error al eliminar el producto. Intenta de nuevo.");
+    },
+  });
+
   function handleGuardarEdicion(id: number, data: Partial<{ name: string; description: string; category: string; price: number; image_url: string; available: boolean }>) {
     editarMutation.mutate({ id, data });
+  }
+
+  function handleEliminar(id: number) {
+    eliminarMutation.mutate(id);
   }
 
   const normalizar = (texto: string) =>
@@ -399,7 +445,9 @@ export default function AdminMenu() {
                 key={prod.id}
                 producto={prod}
                 onGuardarEdicion={handleGuardarEdicion}
-                guardando={editarMutation.isPending}
+                onEliminar={handleEliminar}
+                guardando={editarMutation.isPending && editarMutation.variables?.id === prod.id}
+                eliminando={eliminarMutation.isPending && eliminarMutation.variables === prod.id}
               />
             ))}
           </div>

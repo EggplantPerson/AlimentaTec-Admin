@@ -111,6 +111,10 @@
   color: var(--ink);
   padding-left: 14px;
   position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 .pedido-items li::before {
@@ -122,6 +126,16 @@
   height: 5px;
   border-radius: 50%;
   background: var(--accent);
+}
+
+.pedido-item-qty {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-dark);
+  background: var(--prep-bg);
+  border-radius: 999px;
+  padding: 1px 8px;
+  flex-shrink: 0;
 }
 
 .pedido-total {
