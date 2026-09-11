@@ -26,7 +26,7 @@ model Product {
 model Order {
   uid String @id
   id Int @unique
-  products String[]
+  products String[] @default([])
   total Int
   orderTime DateTime @default(now())
   status String @default("En espera")

@@ -41,7 +41,7 @@ function OrderCard({ order, onAvanzar, guardando }: OrderCardProps) {
       <span className="pedido-num">Pedido #{order.id}</span>
 
       <ul className="pedido-items">
-        {order.products.map((item, i) => (
+        {(order.products ?? []).map((item, i) => (
           <li key={i}>{item}</li>
         ))}
       </ul>
