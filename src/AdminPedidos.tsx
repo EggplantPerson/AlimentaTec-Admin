@@ -1,77 +1,125 @@
-import { useState } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { getOrders, updateOrder} from "./services/order.service";
+import "./AdminPedidos.css";
 
-interface ProductProps {
-  N0: string;
-  nombre: string;
-  descripcion: string;
+interface Order {
+  uid: string;
+  id: number;
+  products: string[];
+  total: number;
+  orderTime: string;
+  status: string;
 }
 
 // Lista de estados en orden. El pedido solo avanza, nunca retrocede.
+// Verificar si hay estado de cancelacion
 const ESTADOS = ["En espera", "En preparacion", "Completado", "Entregado"];
 
-function ProductCard({ N0, nombre, descripcion }: ProductProps) {
-  // Guardamos solo el índice del estado actual dentro de ESTADOS
-  const [indice, setIndice] = useState(0);
+function estadoIndex(status: string) {
+  const i = ESTADOS.indexOf(status);
+  return i === -1 ? 0 : i;
+}
 
-  // Avanza al siguiente estado, si ya no hay más, no hace nada
-  const avanzarEstado = () => {
-    if (indice < ESTADOS.length - 1) {
-      setIndice(indice + 1);
-    }
-  };
+interface OrderCardProps {
+  order: Order;
+  onAvanzar: (uid: string, siguienteEstado: string) => void;
+  guardando: boolean;
+}
 
+function OrderCard({ order, onAvanzar, guardando }: OrderCardProps) {
+  const indice = estadoIndex(order.status);
   const esUltimoEstado = indice === ESTADOS.length - 1;
 
+  function avanzarEstado() {
+    if (indice < ESTADOS.length - 1) {
+      onAvanzar(order.uid, ESTADOS[indice + 1]!);
+    }
+  }
+
   return (
-    <div style={{ border: "1px solid #ccc", borderRadius: "8px", padding: "16px", width: "220px" }}>
-      <p style={{ fontSize: "12px", color: "#666", margin: "0 0 8px 0" }}>
-        Pedido #: {N0}
-      </p>
-      <h3 style={{ marginTop: 0 }}>{nombre}</h3>
-      <p>{descripcion}</p>
+    <div className="pedido-ticket">
+      <span className="pedido-num">Pedido #{order.id}</span>
 
-      <p style={{ marginBottom: "8px" }}><strong>Estado:</strong> {ESTADOS[indice]}</p>
+      <ul className="pedido-items">
+        {order.products.map((item, i) => (
+          <li key={i}>{item}</li>
+        ))}
+      </ul>
 
-      {/* Botón deshabilitado cuando ya se llegó al último estado */}
-      <button
-        onClick={avanzarEstado}
-        disabled={esUltimoEstado}
-        style={{
-          padding: "8px 12px",
-          border: "1px solid #333",
-          borderRadius: "6px",
-          background: esUltimoEstado ? "#eee" : "#fff",
-          cursor: esUltimoEstado ? "not-allowed" : "pointer",
-        }}
-      >
-        {esUltimoEstado ? "Pedido finalizado" : "Siguiente estado"}
-      </button>
+      <p className="pedido-total">${order.total}</p>
+
+      <span className={`pedido-badge estado-${indice}`}>{ESTADOS[indice]}</span>
+
+      <div className="pedido-track" aria-hidden="true">
+        {ESTADOS.map((_, i) => (
+          <span key={i} className={`paso ${i <= indice ? "completo" : ""}`} />
+        ))}
+      </div>
+
+      <div className="pedido-actions">
+        <button className="pedido-btn" onClick={avanzarEstado} disabled={esUltimoEstado || guardando}>
+          {esUltimoEstado ? "Pedido finalizado" : guardando ? "Actualizando..." : "Siguiente estado"}
+        </button>
+      </div>
     </div>
   );
 }
 
-const productos = [
-  { id: 1, N0: "123", nombre: "Sándwich", descripcion: "Sándwich sin queso" },
-  { id: 2, N0: "456", nombre: "Hamburguesa", descripcion: "Hamburguesa de res sin lechuga" },
-  { id: 3, N0: "789", nombre: "Pizza de peperoni", descripcion: "Pizza de peperoni con todo" },
-  { id: 4, N0: "101", nombre: "Croissant de jamón con queso", descripcion: "Croissant sin queso" },
-];
 
 export default function AdminPedidos() {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "20px", fontFamily: "sans-serif" }}>
-      <h1 style={{ textAlign: "center", marginBottom: "30px", color: "#333" }}>
-        Administración de pedidos
-      </h1>
+  const queryClient = useQueryClient();
 
-      {productos.map((prod) => (
-        <ProductCard
-          key={prod.id}
-          N0={prod.N0}
-          nombre={prod.nombre}
-          descripcion={prod.descripcion}
-        />
-      ))}
+  const {
+    data: pedidos = [],
+    isLoading,
+    isError,
+  } = useQuery<Order[]>({
+    queryKey: ["orders"],
+    queryFn: getOrders,
+  });
+
+  const actualizarMutation = useMutation({
+    mutationFn: ({ uid, status}: { uid: string; status: string }) =>
+      updateOrder(uid, {status}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
+
+  function handleAvanzar(uid: string, siguienteEstado: string){
+    actualizarMutation.mutate({uid, status: siguienteEstado});
+  }
+
+  return (
+    <div className="pedidos-admin">
+      <div className="pedidos-admin__inner">
+        <div className="pedidos-header">
+          <h1>Pedidos</h1>
+          <p>Sigue el estado de las órdenes que llegan desde la app</p>
+        </div>
+
+        {isLoading ? (
+          <p className="pedidos-status">Cargando pedidos...</p>
+        ) : isError ? (
+          <p className="pedidos-status is-error">No se pudieron cargar los pedidos.</p>
+        ) : pedidos.length === 0 ? (
+          <p className="pedidos-status">No hay pedidos por ahora.</p>
+        ) : (
+          <div className="pedidos-grid">
+            {pedidos.map((order) => (
+              <OrderCard
+                key={order.uid}
+                order={order}
+                onAvanzar={handleAvanzar}
+                guardando={
+                  actualizarMutation.isPending &&
+                  actualizarMutation.variables?.uid === order.uid
+                }
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
