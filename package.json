@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "server:dev": "tsx watch server/src/server.ts",
     "server:build": "tsc -p server/tsconfig.json",
-    "dev:all": "concurrently \"pnpm server:dev\" \"pnpm dev\""
+    "dev:all": "concurrently \"pnpm server:dev\" \"pnpm dev\"",
+    "start": "node dist/server/server/src/server.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
