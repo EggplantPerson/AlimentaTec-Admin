@@ -1,5 +1,4 @@
 import { S3Client } from "@aws-sdk/client-s3";
-import { error } from "node:console";
 
 function requireEnv(key: string): string {
     const value = process.env[key];
