@@ -27,3 +27,8 @@ export type Product = Prisma.ProductModel
  * 
  */
 export type Order = Prisma.OrderModel
+/**
+ * Model StoreState
+ * 
+ */
+export type StoreState = Prisma.StoreStateModel
