@@ -32,3 +32,8 @@ model Order {
   status String @default("En espera")
   notes String?
 }
+
+model StoreState {
+  id Int @id
+  isOpen Boolean @default(true)
+}

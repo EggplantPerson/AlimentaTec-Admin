@@ -398,7 +398,8 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   Product: 'Product',
-  Order: 'Order'
+  Order: 'Order',
+  StoreState: 'StoreState'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -414,7 +415,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "product" | "order"
+    modelProps: "product" | "order" | "storeState"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -566,6 +567,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    StoreState: {
+      payload: Prisma.$StoreStatePayload<ExtArgs>
+      fields: Prisma.StoreStateFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.StoreStateFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoreStatePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.StoreStateFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoreStatePayload>
+        }
+        findFirst: {
+          args: Prisma.StoreStateFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoreStatePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.StoreStateFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoreStatePayload>
+        }
+        findMany: {
+          args: Prisma.StoreStateFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoreStatePayload>[]
+        }
+        create: {
+          args: Prisma.StoreStateCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoreStatePayload>
+        }
+        createMany: {
+          args: Prisma.StoreStateCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.StoreStateCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoreStatePayload>[]
+        }
+        delete: {
+          args: Prisma.StoreStateDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoreStatePayload>
+        }
+        update: {
+          args: Prisma.StoreStateUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoreStatePayload>
+        }
+        deleteMany: {
+          args: Prisma.StoreStateDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.StoreStateUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.StoreStateUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoreStatePayload>[]
+        }
+        upsert: {
+          args: Prisma.StoreStateUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$StoreStatePayload>
+        }
+        aggregate: {
+          args: Prisma.StoreStateAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateStoreState>
+        }
+        groupBy: {
+          args: Prisma.StoreStateGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.StoreStateGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.StoreStateCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.StoreStateCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -624,10 +699,19 @@ export const OrderScalarFieldEnum = {
   products: 'products',
   total: 'total',
   orderTime: 'orderTime',
-  status: 'status'
+  status: 'status',
+  notes: 'notes'
 } as const
 
 export type OrderScalarFieldEnum = (typeof OrderScalarFieldEnum)[keyof typeof OrderScalarFieldEnum]
+
+
+export const StoreStateScalarFieldEnum = {
+  id: 'id',
+  isOpen: 'isOpen'
+} as const
+
+export type StoreStateScalarFieldEnum = (typeof StoreStateScalarFieldEnum)[keyof typeof StoreStateScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -644,6 +728,14 @@ export const QueryMode = {
 } as const
 
 export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
+
+
+export const NullsOrder = {
+  first: 'first',
+  last: 'last'
+} as const
+
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 
 
 
@@ -867,6 +959,7 @@ export type PrismaClientOptions = PrismaClientOptionsWithAccelerateUrl | PrismaC
 export type GlobalOmitConfig = {
   product?: Prisma.ProductOmit
   order?: Prisma.OrderOmit
+  storeState?: Prisma.StoreStateOmit
 }
 
 /* Types for Logging */
