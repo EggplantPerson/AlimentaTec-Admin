@@ -1,4 +1,7 @@
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { io } from "socket.io-client";
+import { Eye, EyeOff } from "lucide-react";
 import { getOrders, updateOrder } from "./services/order.service";
 import { getProducts } from "./services/product.service";
 import "./AdminPedidos.css";
@@ -10,7 +13,6 @@ interface Order {
   total: number;
   orderTime: string;
   status: string;
-  notes?: string
 }
 
 interface Producto {
@@ -21,10 +23,28 @@ interface Producto {
 // Lista de estados en orden. El pedido solo avanza, nunca retrocede.
 // Verificar si hay estado de cancelacion
 const ESTADOS = ["En espera", "En preparacion", "Completado", "Entregado"];
+const OCULTOS_KEY = "pedidos_ocultos_manual";
 
 function estadoIndex(status: string) {
   const i = ESTADOS.indexOf(status);
   return i === -1 ? 0 : i;
+}
+
+function cargarOcultosManual(): Set<string> {
+  try {
+    const guardado = localStorage.getItem(OCULTOS_KEY);
+    return guardado ? new Set(JSON.parse(guardado)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function guardarOcultosManual(set: Set<string>) {
+  try {
+    localStorage.setItem(OCULTOS_KEY, JSON.stringify(Array.from(set)));
+  } catch {
+    // si localStorage falla (modo privado, etc.), simplemente no persiste
+  }
 }
 
 // Agrupa los ids repetidos del arreglo products y los convierte a { nombre, cantidad }
@@ -43,12 +63,11 @@ interface OrderCardProps {
   order: Order;
   nombresPorId: Record<number, string>;
   onAvanzar: (uid: string, siguienteEstado: string) => void;
+  onOcultar: (uid: string) => void;
   guardando: boolean;
 }
 
-
-
-function OrderCard({ order, nombresPorId, onAvanzar, guardando }: OrderCardProps) {
+function OrderCard({ order, nombresPorId, onAvanzar, onOcultar, guardando }: OrderCardProps) {
   const indice = estadoIndex(order.status);
   const esUltimoEstado = indice === ESTADOS.length - 1;
   const items = resolverItems(order.products ?? [], nombresPorId);
@@ -61,7 +80,17 @@ function OrderCard({ order, nombresPorId, onAvanzar, guardando }: OrderCardProps
 
   return (
     <div className="pedido-ticket">
-      <span className="pedido-num">Pedido #{order.id}</span>
+      <div className="pedido-top-row">
+        <span className="pedido-num">Pedido #{order.id}</span>
+        <button
+          className="pedido-hide-btn"
+          onClick={() => onOcultar(order.uid)}
+          aria-label={`Ocultar pedido ${order.id}`}
+          title="Ocultar este pedido"
+        >
+          <EyeOff size={14} />
+        </button>
+      </div>
 
       <ul className="pedido-items">
         {items.map((item) => (
@@ -93,6 +122,8 @@ function OrderCard({ order, nombresPorId, onAvanzar, guardando }: OrderCardProps
 
 export default function AdminPedidos() {
   const queryClient = useQueryClient();
+  const [mostrarEntregados, setMostrarEntregados] = useState(false);
+  const [ocultosManual, setOcultosManual] = useState<Set<string>>(cargarOcultosManual);
 
   const {
     data: pedidos = [],
@@ -102,8 +133,6 @@ export default function AdminPedidos() {
     queryKey: ["orders"],
     queryFn: getOrders,
   });
-
-  const pedidosVisibles = pedidos.filter((order) =>  order.status !== "Entregado");
 
   const { data: productos = [] } = useQuery<Producto[]>({
     queryKey: ["products"],
@@ -115,24 +144,86 @@ export default function AdminPedidos() {
     nombresPorId[p.id] = p.name;
   });
 
+  // Conexión en tiempo real: escucha pedidos nuevos y actualizados desde el backend
+  useEffect(() => {
+    const socketUrl = import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "");
+    const socket = io(socketUrl);
+
+    socket.on("order:created", (nuevoPedido: Order) => {
+      queryClient.setQueryData<Order[]>(["orders"], (actual = []) => [nuevoPedido, ...actual]);
+    });
+
+    socket.on("order:updated", (pedidoActualizado: Order) => {
+      queryClient.setQueryData<Order[]>(["orders"], (actual = []) =>
+        actual.map((o) => (o.uid === pedidoActualizado.uid ? pedidoActualizado : o))
+      );
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [queryClient]);
+
   const actualizarMutation = useMutation({
     mutationFn: ({ uid, status }: { uid: string; status: string }) =>
       updateOrder(uid, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-    },
+    // El evento "order:updated" del socket actualiza la caché al confirmar el backend.
   });
 
   function handleAvanzar(uid: string, siguienteEstado: string) {
     actualizarMutation.mutate({ uid, status: siguienteEstado });
   }
 
+  function handleOcultar(uid: string) {
+    setOcultosManual((prev) => {
+      const nuevo = new Set(prev);
+      nuevo.add(uid);
+      guardarOcultosManual(nuevo);
+      return nuevo;
+    });
+  }
+
+  function handleMostrarOcultos() {
+    setOcultosManual(() => {
+      const vacio = new Set<string>();
+      guardarOcultosManual(vacio);
+      return vacio;
+    });
+  }
+
+  const pedidosVisibles = pedidos.filter((o) => {
+    if (ocultosManual.has(o.uid)) return false;
+    const esEntregado = estadoIndex(o.status) === ESTADOS.length - 1;
+    if (esEntregado && !mostrarEntregados) return false;
+    return true;
+  });
+
+  const totalOcultosManual = pedidos.filter((o) => ocultosManual.has(o.uid)).length;
+
   return (
     <div className="pedidos-admin">
       <div className="pedidos-admin__inner">
         <div className="pedidos-header">
-          <h1>Pedidos</h1>
-          <p>Sigue el estado de las órdenes que llegan desde la app</p>
+          <div>
+            <h1>Pedidos</h1>
+            <p>Sigue el estado de las órdenes que llegan desde la app</p>
+          </div>
+
+          <div className="pedidos-controls">
+            <button
+              className={`pedido-chip ${mostrarEntregados ? "is-active" : ""}`}
+              onClick={() => setMostrarEntregados((prev) => !prev)}
+            >
+              {mostrarEntregados ? <EyeOff size={13} /> : <Eye size={13} />}
+              {mostrarEntregados ? "Ocultar entregados" : "Ver entregados"}
+            </button>
+
+            {totalOcultosManual > 0 && (
+              <button className="pedido-link-btn" onClick={handleMostrarOcultos}>
+                Mostrar {totalOcultosManual} oculto{totalOcultosManual > 1 ? "s" : ""}
+              </button>
+            )}
+          </div>
         </div>
 
         {isLoading ? (
@@ -140,7 +231,7 @@ export default function AdminPedidos() {
         ) : isError ? (
           <p className="pedidos-status is-error">No se pudieron cargar los pedidos.</p>
         ) : pedidosVisibles.length === 0 ? (
-          <p className="pedidos-status">No hay pedidos por ahora.</p>
+          <p className="pedidos-status">No hay pedidos por mostrar.</p>
         ) : (
           <div className="pedidos-grid">
             {pedidosVisibles.map((order) => (
@@ -149,6 +240,7 @@ export default function AdminPedidos() {
                 order={order}
                 nombresPorId={nombresPorId}
                 onAvanzar={handleAvanzar}
+                onOcultar={handleOcultar}
                 guardando={
                   actualizarMutation.isPending &&
                   actualizarMutation.variables?.uid === order.uid
