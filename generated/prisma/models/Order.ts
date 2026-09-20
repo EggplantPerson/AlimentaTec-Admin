@@ -42,6 +42,7 @@ export type OrderMinAggregateOutputType = {
   total: number | null
   orderTime: Date | null
   status: string | null
+  notes: string | null
 }
 
 export type OrderMaxAggregateOutputType = {
@@ -50,6 +51,7 @@ export type OrderMaxAggregateOutputType = {
   total: number | null
   orderTime: Date | null
   status: string | null
+  notes: string | null
 }
 
 export type OrderCountAggregateOutputType = {
@@ -59,6 +61,7 @@ export type OrderCountAggregateOutputType = {
   total: number
   orderTime: number
   status: number
+  notes: number
   _all: number
 }
 
@@ -79,6 +82,7 @@ export type OrderMinAggregateInputType = {
   total?: true
   orderTime?: true
   status?: true
+  notes?: true
 }
 
 export type OrderMaxAggregateInputType = {
@@ -87,6 +91,7 @@ export type OrderMaxAggregateInputType = {
   total?: true
   orderTime?: true
   status?: true
+  notes?: true
 }
 
 export type OrderCountAggregateInputType = {
@@ -96,6 +101,7 @@ export type OrderCountAggregateInputType = {
   total?: true
   orderTime?: true
   status?: true
+  notes?: true
   _all?: true
 }
 
@@ -192,6 +198,7 @@ export type OrderGroupByOutputType = {
   total: number
   orderTime: Date
   status: string
+  notes: string | null
   _count: OrderCountAggregateOutputType | null
   _avg: OrderAvgAggregateOutputType | null
   _sum: OrderSumAggregateOutputType | null
@@ -224,6 +231,7 @@ export type OrderWhereInput = {
   total?: Prisma.IntFilter<"Order"> | number
   orderTime?: Prisma.DateTimeFilter<"Order"> | Date | string
   status?: Prisma.StringFilter<"Order"> | string
+  notes?: Prisma.StringNullableFilter<"Order"> | string | null
 }
 
 export type OrderOrderByWithRelationInput = {
@@ -233,6 +241,7 @@ export type OrderOrderByWithRelationInput = {
   total?: Prisma.SortOrder
   orderTime?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  notes?: Prisma.SortOrderInput | Prisma.SortOrder
 }
 
 export type OrderWhereUniqueInput = Prisma.AtLeast<{
@@ -245,6 +254,7 @@ export type OrderWhereUniqueInput = Prisma.AtLeast<{
   total?: Prisma.IntFilter<"Order"> | number
   orderTime?: Prisma.DateTimeFilter<"Order"> | Date | string
   status?: Prisma.StringFilter<"Order"> | string
+  notes?: Prisma.StringNullableFilter<"Order"> | string | null
 }, "uid" | "id">
 
 export type OrderOrderByWithAggregationInput = {
@@ -254,6 +264,7 @@ export type OrderOrderByWithAggregationInput = {
   total?: Prisma.SortOrder
   orderTime?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  notes?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.OrderCountOrderByAggregateInput
   _avg?: Prisma.OrderAvgOrderByAggregateInput
   _max?: Prisma.OrderMaxOrderByAggregateInput
@@ -271,6 +282,7 @@ export type OrderScalarWhereWithAggregatesInput = {
   total?: Prisma.IntWithAggregatesFilter<"Order"> | number
   orderTime?: Prisma.DateTimeWithAggregatesFilter<"Order"> | Date | string
   status?: Prisma.StringWithAggregatesFilter<"Order"> | string
+  notes?: Prisma.StringNullableWithAggregatesFilter<"Order"> | string | null
 }
 
 export type OrderCreateInput = {
@@ -280,6 +292,7 @@ export type OrderCreateInput = {
   total: number
   orderTime?: Date | string
   status?: string
+  notes?: string | null
 }
 
 export type OrderUncheckedCreateInput = {
@@ -289,6 +302,7 @@ export type OrderUncheckedCreateInput = {
   total: number
   orderTime?: Date | string
   status?: string
+  notes?: string | null
 }
 
 export type OrderUpdateInput = {
@@ -298,6 +312,7 @@ export type OrderUpdateInput = {
   total?: Prisma.IntFieldUpdateOperationsInput | number
   orderTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type OrderUncheckedUpdateInput = {
@@ -307,6 +322,7 @@ export type OrderUncheckedUpdateInput = {
   total?: Prisma.IntFieldUpdateOperationsInput | number
   orderTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type OrderCreateManyInput = {
@@ -316,6 +332,7 @@ export type OrderCreateManyInput = {
   total: number
   orderTime?: Date | string
   status?: string
+  notes?: string | null
 }
 
 export type OrderUpdateManyMutationInput = {
@@ -325,6 +342,7 @@ export type OrderUpdateManyMutationInput = {
   total?: Prisma.IntFieldUpdateOperationsInput | number
   orderTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type OrderUncheckedUpdateManyInput = {
@@ -334,6 +352,7 @@ export type OrderUncheckedUpdateManyInput = {
   total?: Prisma.IntFieldUpdateOperationsInput | number
   orderTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
+  notes?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type StringNullableListFilter<$PrismaModel = never> = {
@@ -351,6 +370,7 @@ export type OrderCountOrderByAggregateInput = {
   total?: Prisma.SortOrder
   orderTime?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  notes?: Prisma.SortOrder
 }
 
 export type OrderAvgOrderByAggregateInput = {
@@ -364,6 +384,7 @@ export type OrderMaxOrderByAggregateInput = {
   total?: Prisma.SortOrder
   orderTime?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  notes?: Prisma.SortOrder
 }
 
 export type OrderMinOrderByAggregateInput = {
@@ -372,6 +393,7 @@ export type OrderMinOrderByAggregateInput = {
   total?: Prisma.SortOrder
   orderTime?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  notes?: Prisma.SortOrder
 }
 
 export type OrderSumOrderByAggregateInput = {
@@ -392,6 +414,10 @@ export type DateTimeFieldUpdateOperationsInput = {
   set?: Date | string
 }
 
+export type NullableStringFieldUpdateOperationsInput = {
+  set?: string | null
+}
+
 
 
 export type OrderSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -401,6 +427,7 @@ export type OrderSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   total?: boolean
   orderTime?: boolean
   status?: boolean
+  notes?: boolean
 }, ExtArgs["result"]["order"]>
 
 export type OrderSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -410,6 +437,7 @@ export type OrderSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   total?: boolean
   orderTime?: boolean
   status?: boolean
+  notes?: boolean
 }, ExtArgs["result"]["order"]>
 
 export type OrderSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -419,6 +447,7 @@ export type OrderSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   total?: boolean
   orderTime?: boolean
   status?: boolean
+  notes?: boolean
 }, ExtArgs["result"]["order"]>
 
 export type OrderSelectScalar = {
@@ -428,9 +457,10 @@ export type OrderSelectScalar = {
   total?: boolean
   orderTime?: boolean
   status?: boolean
+  notes?: boolean
 }
 
-export type OrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"uid" | "id" | "products" | "total" | "orderTime" | "status", ExtArgs["result"]["order"]>
+export type OrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"uid" | "id" | "products" | "total" | "orderTime" | "status" | "notes", ExtArgs["result"]["order"]>
 
 export type $OrderPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Order"
@@ -442,6 +472,7 @@ export type $OrderPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     total: number
     orderTime: Date
     status: string
+    notes: string | null
   }, ExtArgs["result"]["order"]>
   composites: {}
 }
@@ -871,6 +902,7 @@ export interface OrderFieldRefs {
   readonly total: Prisma.FieldRef<"Order", 'Int'>
   readonly orderTime: Prisma.FieldRef<"Order", 'DateTime'>
   readonly status: Prisma.FieldRef<"Order", 'String'>
+  readonly notes: Prisma.FieldRef<"Order", 'String'>
 }
     
 

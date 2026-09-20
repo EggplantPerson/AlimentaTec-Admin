@@ -26,8 +26,14 @@ model Product {
 model Order {
   uid String @id
   id Int @unique
-  products String[]
+  products String[] @default([])
   total Int
   orderTime DateTime @default(now())
   status String @default("En espera")
+  notes String?
+}
+
+model StoreState {
+  id Int @id
+  isOpen Boolean @default(true)
 }

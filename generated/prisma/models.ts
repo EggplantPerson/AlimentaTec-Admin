@@ -10,4 +10,5 @@
  */
 export type * from './models/Product.ts'
 export type * from './models/Order.ts'
+export type * from './models/StoreState.ts'
 export type * from './commonInputTypes.ts'

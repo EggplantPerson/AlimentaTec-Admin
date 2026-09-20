@@ -52,7 +52,8 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   Product: 'Product',
-  Order: 'Order'
+  Order: 'Order',
+  StoreState: 'StoreState'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -90,10 +91,19 @@ export const OrderScalarFieldEnum = {
   products: 'products',
   total: 'total',
   orderTime: 'orderTime',
-  status: 'status'
+  status: 'status',
+  notes: 'notes'
 } as const
 
 export type OrderScalarFieldEnum = (typeof OrderScalarFieldEnum)[keyof typeof OrderScalarFieldEnum]
+
+
+export const StoreStateScalarFieldEnum = {
+  id: 'id',
+  isOpen: 'isOpen'
+} as const
+
+export type StoreStateScalarFieldEnum = (typeof StoreStateScalarFieldEnum)[keyof typeof StoreStateScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -110,4 +120,12 @@ export const QueryMode = {
 } as const
 
 export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
+
+
+export const NullsOrder = {
+  first: 'first',
+  last: 'last'
+} as const
+
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 

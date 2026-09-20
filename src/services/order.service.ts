@@ -1,14 +1,15 @@
-const API_URL = '/api/orders';
+const API_URL = `${import.meta.env.VITE_API_URL}/orders`;
 
 export async function getOrders() {
     const res = await fetch(API_URL);
-    if (!res.ok) throw new Error('Failed to fetch products');
+    if (!res.ok) throw new Error('Failed to fetch orders');
     return res.json();
 }
 
 export async function getOrder(uid: string) {
     const res = await fetch(`${API_URL}/${uid}`);
-    if (!res.ok) throw new Error('Failed to fetch product');
+    if (!res.ok) throw new Error('Failed to fetch order');
+    return res.json();
 }
 
 export async function createOrder(data: {uid: string; id: number; products: string[]; total: number}) {
@@ -17,16 +18,18 @@ export async function createOrder(data: {uid: string; id: number; products: stri
         headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Failed to create Order')
+    if (!res.ok) throw new Error('Failed to create Order');
+    return res.json();
 }
 
 export async function updateOrder(uid: string, data: Partial<{ products: string[]; status: string; total: number }>) {
     const res = await fetch(`${API_URL}/${uid}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Failed to update order')
+    if (!res.ok) throw new Error('Failed to update order');
+    return res.json();
 }
 
 export async function deleteOrder(uid: string) {

@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     // File Layout
-    // "rootDir": "./src",
-    // "outDir": "./dist",
+    "outDir": "./dist",
+    "noEmit": true,
 
     // Environment Settings
     "module": "ESNext",
@@ -27,5 +27,7 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true
-  }
+  },
+  "include": ["src"],
+  "exclude": ["server", "generated", "node_modules", "dist"]
 }
