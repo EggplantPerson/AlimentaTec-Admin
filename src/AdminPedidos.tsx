@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { io } from "socket.io-client";
-import { Eye, EyeOff } from "lucide-react";
-import { getOrders, updateOrder } from "./services/order.service";
+import { Eye, EyeOff, Trash2, X } from "lucide-react";
+import { getOrders, updateOrder, deleteOrder } from "./services/order.service";
 import { getProducts } from "./services/product.service";
 import "./AdminPedidos.css";
 
+// Forma de un pedido tal como viene de la base de datos
 interface Order {
   uid: string;
   id: number;
@@ -13,6 +14,7 @@ interface Order {
   total: number;
   orderTime: string;
   status: string;
+  notes?: string | null;
 }
 
 interface Producto {
@@ -30,6 +32,7 @@ function estadoIndex(status: string) {
   return i === -1 ? 0 : i;
 }
 
+// Ocultar manualmente: guarda/lee la lista de pedidos ocultos en el navegador (no en la DB)
 function cargarOcultosManual(): Set<string> {
   try {
     const guardado = localStorage.getItem(OCULTOS_KEY);
@@ -47,7 +50,7 @@ function guardarOcultosManual(set: Set<string>) {
   }
 }
 
-// Agrupa los ids repetidos del arreglo products y los convierte a { nombre, cantidad }
+// Convertir ids de producto a nombres: agrupa repetidos y los convierte a { nombre, cantidad }
 function resolverItems(productIds: string[], nombresPorId: Record<number, string>) {
   const conteo = new Map<string, number>();
   productIds.forEach((pid) => conteo.set(pid, (conteo.get(pid) ?? 0) + 1));
@@ -64,14 +67,19 @@ interface OrderCardProps {
   nombresPorId: Record<number, string>;
   onAvanzar: (uid: string, siguienteEstado: string) => void;
   onOcultar: (uid: string) => void;
+  onEliminar: (uid: string) => void;
   guardando: boolean;
+  eliminando: boolean;
 }
 
-function OrderCard({ order, nombresPorId, onAvanzar, onOcultar, guardando }: OrderCardProps) {
+// Tarjeta de un pedido individual
+function OrderCard({ order, nombresPorId, onAvanzar, onOcultar, onEliminar, guardando, eliminando }: OrderCardProps) {
+  const [confirmarBorrado, setConfirmarBorrado] = useState(false);
   const indice = estadoIndex(order.status);
   const esUltimoEstado = indice === ESTADOS.length - 1;
   const items = resolverItems(order.products ?? [], nombresPorId);
 
+  // Avanzar al siguiente estado (En espera -> En preparación -> Completado -> Entregado)
   function avanzarEstado() {
     if (indice < ESTADOS.length - 1) {
       onAvanzar(order.uid, ESTADOS[indice + 1]!);
@@ -92,6 +100,7 @@ function OrderCard({ order, nombresPorId, onAvanzar, onOcultar, guardando }: Ord
         </button>
       </div>
 
+      {/* Lista de productos del pedido, con cantidad si se repite */}
       <ul className="pedido-items">
         {items.map((item) => (
           <li key={item.id}>
@@ -100,6 +109,13 @@ function OrderCard({ order, nombresPorId, onAvanzar, onOcultar, guardando }: Ord
           </li>
         ))}
       </ul>
+
+      {/* Nota del pedido (ej. "sin queso", instrucciones especiales) */}
+      {order.notes && (
+        <p className="pedido-notas">
+          <strong>Nota:</strong> {order.notes}
+        </p>
+      )}
 
       <p className="pedido-total">${order.total}</p>
 
@@ -115,6 +131,26 @@ function OrderCard({ order, nombresPorId, onAvanzar, onOcultar, guardando }: Ord
         <button className="pedido-btn" onClick={avanzarEstado} disabled={esUltimoEstado || guardando}>
           {esUltimoEstado ? "Pedido finalizado" : guardando ? "Actualizando..." : "Siguiente estado"}
         </button>
+
+        {/* Eliminar solo aparece una vez que el pedido ya fue entregado */}
+        {esUltimoEstado && (
+          confirmarBorrado ? (
+            <div className="pedido-confirm-delete">
+              <span>¿Eliminar este pedido?</span>
+              <button className="pedido-btn-delete" onClick={() => onEliminar(order.uid)} disabled={eliminando}>
+                {eliminando ? "Eliminando..." : "Sí, eliminar"}
+              </button>
+              <button className="pedido-btn-cancel" onClick={() => setConfirmarBorrado(false)} disabled={eliminando}>
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <button className="pedido-btn-delete" onClick={() => setConfirmarBorrado(true)}>
+              <Trash2 size={14} />
+              Eliminar pedido
+            </button>
+          )
+        )}
       </div>
     </div>
   );
@@ -125,6 +161,7 @@ export default function AdminPedidos() {
   const [mostrarEntregados, setMostrarEntregados] = useState(false);
   const [ocultosManual, setOcultosManual] = useState<Set<string>>(cargarOcultosManual);
 
+  // Obtención de datos: lista de pedidos
   const {
     data: pedidos = [],
     isLoading,
@@ -134,6 +171,7 @@ export default function AdminPedidos() {
     queryFn: getOrders,
   });
 
+  // Obtención de datos: catálogo de productos (para mostrar nombres en vez de ids)
   const { data: productos = [] } = useQuery<Producto[]>({
     queryKey: ["products"],
     queryFn: getProducts,
@@ -164,6 +202,7 @@ export default function AdminPedidos() {
     };
   }, [queryClient]);
 
+  // Actualizar el estado de un pedido en la base de datos
   const actualizarMutation = useMutation({
     mutationFn: ({ uid, status }: { uid: string; status: string }) =>
       updateOrder(uid, { status }),
@@ -174,6 +213,22 @@ export default function AdminPedidos() {
     actualizarMutation.mutate({ uid, status: siguienteEstado });
   }
 
+  // Eliminar un pedido de la base de datos (solo pedidos ya entregados)
+  const eliminarMutation = useMutation({
+    mutationFn: (uid: string) => deleteOrder(uid),
+    onSuccess: (_, uid) => {
+      queryClient.setQueryData<Order[]>(["orders"], (actual = []) => actual.filter((o) => o.uid !== uid));
+    },
+    onError: () => {
+      alert("No se pudo eliminar el pedido. Intenta de nuevo.");
+    },
+  });
+
+  function handleEliminarPedido(uid: string) {
+    eliminarMutation.mutate(uid);
+  }
+
+  // Ocultar manualmente un pedido puntual (solo en este navegador, no borra nada)
   function handleOcultar(uid: string) {
     setOcultosManual((prev) => {
       const nuevo = new Set(prev);
@@ -191,12 +246,15 @@ export default function AdminPedidos() {
     });
   }
 
-  const pedidosVisibles = pedidos.filter((o) => {
-    if (ocultosManual.has(o.uid)) return false;
-    const esEntregado = estadoIndex(o.status) === ESTADOS.length - 1;
-    if (esEntregado && !mostrarEntregados) return false;
-    return true;
-  });
+  // Pedidos a mostrar: ordenados por más reciente primero, sin los ocultos ni (por defecto) los entregados
+  const pedidosVisibles = [...pedidos]
+    .sort((a, b) => new Date(b.orderTime).getTime() - new Date(a.orderTime).getTime())
+    .filter((o) => {
+      if (ocultosManual.has(o.uid)) return false;
+      const esEntregado = estadoIndex(o.status) === ESTADOS.length - 1;
+      if (esEntregado && !mostrarEntregados) return false;
+      return true;
+    });
 
   const totalOcultosManual = pedidos.filter((o) => ocultosManual.has(o.uid)).length;
 
@@ -226,6 +284,7 @@ export default function AdminPedidos() {
           </div>
         </div>
 
+        {/* Rellenar información de pedidos: lista de tarjetas, o mensaje de carga/error/vacío */}
         {isLoading ? (
           <p className="pedidos-status">Cargando pedidos...</p>
         ) : isError ? (
@@ -241,9 +300,14 @@ export default function AdminPedidos() {
                 nombresPorId={nombresPorId}
                 onAvanzar={handleAvanzar}
                 onOcultar={handleOcultar}
+                onEliminar={handleEliminarPedido}
                 guardando={
                   actualizarMutation.isPending &&
                   actualizarMutation.variables?.uid === order.uid
+                }
+                eliminando={
+                  eliminarMutation.isPending &&
+                  eliminarMutation.variables === order.uid
                 }
               />
             ))}
