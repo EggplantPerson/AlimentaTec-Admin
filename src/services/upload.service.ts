@@ -13,7 +13,7 @@ export async function uploadImage(file: File): Promise<{ key: string; publicUrl:
     //Subir bytes del archivo directo al bucket
     const uploadRes = await fetch(uploadUrl, {
         method:'PUT',
-        headers: { 'ContentType': file.type},
+        headers: { 'Content-Type': file.type},
         body: file,
     });
     if (!uploadRes.ok) throw new Error('Failed to upload file');
