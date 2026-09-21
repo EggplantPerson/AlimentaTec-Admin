@@ -9,7 +9,7 @@ export async function getStoreState() {
 export async function updateStoreState(data: { isOpen: boolean }) {
     const res = await fetch(`${API_URL}/1`, {
         method: 'PUT',
-        headers: { 'ContentType': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     });
     if (!res.ok) throw new Error('Failed to update store state');
