@@ -1,7 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { Edit2, Search, X, Plus, Check, Trash2 } from "lucide-react";
+import { io } from "socket.io-client";
+import { Edit2, Search, X, Plus, Check, Trash2, Lock, Unlock, Camera } from "lucide-react";
 import { getProducts, createProduct, updateProduct, deleteProduct } from "./services/product.service";
+import { getStoreState, updateStoreState } from "./services/storeState.service";
+import { uploadImage } from "./services/upload.service";
 import "./AdminMenu.css";
 
 const CATEGORIAS = ["Comidas", "Bebidas", "Snacks"] as const;
@@ -25,10 +28,14 @@ interface ProductCardProps {
   eliminando: boolean;
 }
 
+// Tarjeta individual de producto: muestra vista normal o formulario de edición
 function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, eliminando }: ProductCardProps) {
   const [editando, setEditando] = useState(false);
   const [editError, setEditError] = useState("");
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+
+  // Copia local editable del producto (no se toca el original hasta guardar)
   const [form, setForm] = useState({
     name: producto.name,
     description: producto.description,
@@ -37,10 +44,30 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
     image_url: producto.image_url,
   });
 
+  // Cambiar disponibilidad (Disponible / Agotado) — se guarda de inmediato, sin pasar por "Guardar"
   function handleCambiarDisponibilidad(nuevoValor: boolean) {
     onGuardarEdicion(producto.id, { available: nuevoValor });
   }
 
+  // Subida de imagen: toma el archivo elegido (cámara o galería), lo sube al bucket
+  // y guarda la URL pública resultante en el formulario
+  async function handleArchivoSeleccionado(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+    setSubiendoImagen(true);
+    setEditError("");
+    try {
+      const { publicUrl } = await uploadImage(archivo);
+      setForm((prev) => ({ ...prev, image_url: publicUrl }));
+    } catch {
+      setEditError("No se pudo subir la imagen. Intenta de nuevo o pega una URL manual.");
+    } finally {
+      setSubiendoImagen(false);
+      e.target.value = "";
+    }
+  }
+
+  // Validar y guardar cambios del producto editado
   function handleGuardar() {
     const precioNumero = Number(form.price);
     if (!form.name.trim() || !form.category.trim() || isNaN(precioNumero)) {
@@ -59,6 +86,7 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
     setEditando(false);
   }
 
+  // Descartar cambios y volver el formulario a los valores originales
   function handleCancelar() {
     setForm({
       name: producto.name,
@@ -71,6 +99,7 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
     setEditando(false);
   }
 
+  // ---------- Vista de edición ----------
   if (editando) {
     return (
       <div className="ticket is-editing">
@@ -112,20 +141,37 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
               placeholder="Precio"
             />
           </div>
+
+          {/* Imagen: vista previa + botón de cámara/galería + URL manual de respaldo */}
           <div className="field">
-            <label>URL de imagen</label>
+            <label>Imagen</label>
+            {form.image_url && (
+              <img src={form.image_url} alt="Vista previa" className="image-preview" />
+            )}
+            <label className="file-upload-btn">
+              <Camera size={14} />
+              {subiendoImagen ? "Subiendo..." : "Tomar foto o subir imagen"}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleArchivoSeleccionado}
+                disabled={subiendoImagen}
+                hidden
+              />
+            </label>
             <input
               type="text"
               value={form.image_url}
               onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-              placeholder="URL de imagen"
+              placeholder="O pega una URL de imagen"
             />
           </div>
 
           {editError && <p className="form-error">{editError}</p>}
 
           <div className="edit-actions">
-            <button className="btn btn-primary" onClick={handleGuardar} disabled={guardando}>
+            <button className="btn btn-primary" onClick={handleGuardar} disabled={guardando || subiendoImagen}>
               <Check size={14} />
               {guardando ? "Guardando..." : "Guardar"}
             </button>
@@ -139,6 +185,7 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
     );
   }
 
+  // ---------- Vista normal (no editando) ----------
   return (
     <div className="ticket">
       <img src={producto.image_url} alt={producto.name} className="ticket-image" />
@@ -148,6 +195,7 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
         <p className="ticket-desc">{producto.description}</p>
         <p className="ticket-price">${producto.price}</p>
 
+        {/* Toggle de disponibilidad */}
         <div className="avail-toggle" role="group" aria-label={`Disponibilidad de ${producto.name}`}>
           <button
             type="button"
@@ -169,6 +217,7 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
           </button>
         </div>
 
+        {/* Botones Editar / Eliminar (con confirmación antes de borrar) */}
         <div className="ticket-footer">
           {confirmarBorrado ? (
             <>
@@ -211,10 +260,14 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
 
 export default function AdminMenu() {
   const queryClient = useQueryClient();
+
+  // Estado de búsqueda, filtro de categoría y formulario de nuevo producto
   const [busqueda, setBusqueda] = useState("");
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>("Todas");
   const [mostrarForm, setMostrarForm] = useState(false);
   const [formError, setFormError] = useState("");
+  const [confirmarCierre, setConfirmarCierre] = useState(false);
+  const [subiendoImagenNueva, setSubiendoImagenNueva] = useState(false);
   const [nuevoProducto, setNuevoProducto] = useState({
     name: "",
     description: "",
@@ -223,6 +276,7 @@ export default function AdminMenu() {
     image_url: ""
   });
 
+  // Obtención de datos: lista de productos desde el backend
   const {
     data: productos = [],
     isLoading,
@@ -232,6 +286,71 @@ export default function AdminMenu() {
     queryFn: getProducts,
   });
 
+  // Obtención de datos: estado actual de la cafetería (abierta/cerrada)
+  const { data: storeState } = useQuery<{ isOpen: boolean }>({
+    queryKey: ["storeState"],
+    queryFn: getStoreState,
+  });
+
+  const cafeteriaAbierta = storeState?.isOpen ?? true;
+
+  // Conexión en tiempo real: si otro dispositivo abre/cierra la cafetería, se refleja aquí solo
+  useEffect(() => {
+    const socketUrl = import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "");
+    const socket = io(socketUrl);
+
+    socket.on("storeState:updated", (data: { isOpen: boolean }) => {
+      queryClient.setQueryData(["storeState"], data);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [queryClient]);
+
+  // Apertura/cierre de la cafetería
+  const storeStateMutation = useMutation({
+    mutationFn: (isOpen: boolean) => updateStoreState({ isOpen }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["storeState"], data);
+    },
+    onError: () => {
+      alert("No se pudo cambiar el estado de la cafetería. Intenta de nuevo.");
+    },
+  });
+
+  // Si está abierta y le dan a "Cerrar", primero pide confirmación
+  function handleToggleCafeteria() {
+    if (cafeteriaAbierta) {
+      setConfirmarCierre(true);
+      return;
+    }
+    storeStateMutation.mutate(true);
+  }
+
+  function confirmarYCerrar() {
+    storeStateMutation.mutate(false);
+    setConfirmarCierre(false);
+  }
+
+  // Subida de imagen para el formulario de producto nuevo
+  async function handleArchivoNuevoProducto(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+    setSubiendoImagenNueva(true);
+    setFormError("");
+    try {
+      const { publicUrl } = await uploadImage(archivo);
+      setNuevoProducto((prev) => ({ ...prev, image_url: publicUrl }));
+    } catch {
+      setFormError("No se pudo subir la imagen. Intenta de nuevo o pega una URL manual.");
+    } finally {
+      setSubiendoImagenNueva(false);
+      e.target.value = "";
+    }
+  }
+
+  // Crear producto
   const crearMutation = useMutation({
     mutationFn: createProduct,
     onSuccess: () => {
@@ -245,6 +364,7 @@ export default function AdminMenu() {
     },
   });
 
+  // Editar producto existente
   const editarMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<{ name: string; description: string; category: string; price: number; image_url: string; available: boolean }> }) =>
       updateProduct(id, data),
@@ -256,6 +376,7 @@ export default function AdminMenu() {
     },
   });
 
+  // Eliminar producto
   const eliminarMutation = useMutation({
     mutationFn: (id: number) => deleteProduct(id),
     onSuccess: () => {
@@ -274,12 +395,14 @@ export default function AdminMenu() {
     eliminarMutation.mutate(id);
   }
 
+  // Quita acentos para que la búsqueda no distinga "café" de "cafe"
   const normalizar = (texto: string) =>
     texto
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
+  // Filtrado de productos: combina texto de búsqueda + categoría seleccionada
   const productosFiltrados = useMemo(() => {
     const q = normalizar(busqueda.trim());
     return productos.filter((p) => {
@@ -289,6 +412,7 @@ export default function AdminMenu() {
     });
   }, [busqueda, categoriaFiltro, productos]);
 
+  // Rellenar información de producto nuevo y enviarlo a crear
   function handleCrearProducto(e: React.FormEvent) {
     e.preventDefault();
 
@@ -314,6 +438,43 @@ export default function AdminMenu() {
   return (
     <div className="menu-admin">
       <div className="menu-admin__inner">
+
+        {/* Barra de estado: abrir/cerrar la cafetería */}
+        <div className={`shop-status-bar ${cafeteriaAbierta ? "is-open" : "is-closed"}`}>
+          <div className="shop-status-text">
+            <span className="shop-status-dot" />
+            {cafeteriaAbierta
+              ? "Cafetería abierta — se pueden hacer pedidos"
+              : "Cafetería cerrada — no se pueden hacer pedidos"}
+          </div>
+
+          {confirmarCierre ? (
+            <div className="shop-status-confirm">
+              <span>¿Cerrar la cafetería ahora?</span>
+              <button className="btn btn-danger" onClick={confirmarYCerrar} disabled={storeStateMutation.isPending}>
+                Sí, cerrar
+              </button>
+              <button className="btn btn-secondary" onClick={() => setConfirmarCierre(false)}>
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              className={`btn ${cafeteriaAbierta ? "btn-danger-outline" : "btn-primary"}`}
+              onClick={handleToggleCafeteria}
+              disabled={storeStateMutation.isPending}
+            >
+              {cafeteriaAbierta ? <Lock size={14} /> : <Unlock size={14} />}
+              {storeStateMutation.isPending
+                ? "Actualizando..."
+                : cafeteriaAbierta
+                ? "Cerrar cafetería"
+                : "Abrir cafetería"}
+            </button>
+          )}
+        </div>
+
+        {/* Encabezado */}
         <div className="menu-header">
           <div>
             <h1>Menú del día</h1>
@@ -332,6 +493,7 @@ export default function AdminMenu() {
           </button>
         </div>
 
+        {/* Formulario de producto nuevo */}
         {mostrarForm && (
           <form className="ticket-panel" onSubmit={handleCrearProducto}>
             <h2>Nuevo producto</h2>
@@ -374,13 +536,30 @@ export default function AdminMenu() {
                   onChange={(e) => setNuevoProducto({ ...nuevoProducto, price: e.target.value })}
                 />
               </div>
+
+              {/* Imagen del producto nuevo */}
               <div className="field field-full">
-                <label>URL de imagen</label>
+                <label>Imagen</label>
+                {nuevoProducto.image_url && (
+                  <img src={nuevoProducto.image_url} alt="Vista previa" className="image-preview" />
+                )}
+                <label className="file-upload-btn">
+                  <Camera size={14} />
+                  {subiendoImagenNueva ? "Subiendo..." : "Tomar foto o subir imagen"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleArchivoNuevoProducto}
+                    disabled={subiendoImagenNueva}
+                    hidden
+                  />
+                </label>
                 <input
                   type="text"
-                  placeholder="https://..."
                   value={nuevoProducto.image_url}
                   onChange={(e) => setNuevoProducto({ ...nuevoProducto, image_url: e.target.value })}
+                  placeholder="O pega una URL de imagen"
                 />
               </div>
             </div>
@@ -388,13 +567,14 @@ export default function AdminMenu() {
             {formError && <p className="form-error">{formError}</p>}
 
             <div className="panel-actions">
-              <button type="submit" className="btn btn-primary" disabled={crearMutation.isPending}>
+              <button type="submit" className="btn btn-primary" disabled={crearMutation.isPending || subiendoImagenNueva}>
                 {crearMutation.isPending ? "Guardando..." : "Guardar producto"}
               </button>
             </div>
           </form>
         )}
 
+        {/* Búsqueda + filtro de categoría */}
         <div className="filters-row">
           <div className="search-box">
             <Search size={16} className="icon-search" />
@@ -430,6 +610,7 @@ export default function AdminMenu() {
           </div>
         </div>
 
+        {/* Lista de productos (o estado de carga / error / vacío) */}
         {isLoading ? (
           <p className="status-text">Cargando productos...</p>
         ) : isError ? (

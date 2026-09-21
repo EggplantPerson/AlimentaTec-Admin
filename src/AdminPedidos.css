@@ -1,5 +1,7 @@
+/* Fuentes: Space Grotesk para títulos/UI, Inter para texto de cuerpo */
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
 
+/* Variables de color y layout general de la página (usa su propio scope, no choca con AdminMenu) */
 .pedidos-admin {
   --bg: #F6F7F2;
   --surface: #FFFFFF;
@@ -16,6 +18,8 @@
   --done-bg: #E4F1EC;
   --delivered: #5B6B62;
   --delivered-bg: #E7E9E4;
+  --danger: #B33F3F;
+  --danger-bg: #FBEAEA;
   --radius: 10px;
   --radius-sm: 6px;
   --shadow: 0 1px 2px rgba(28, 38, 34, 0.06), 0 4px 14px rgba(28, 38, 34, 0.05);
@@ -36,7 +40,14 @@
   margin: 0 auto;
 }
 
+/* ---------- Encabezado + controles (Ver entregados / Mostrar ocultos) ---------- */
+
 .pedidos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 24px;
 }
 
@@ -52,198 +63,6 @@
   margin: 0;
   color: var(--ink-soft);
   font-size: 14px;
-}
-
-.pedidos-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 18px;
-}
-
-.pedido-ticket {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 16px 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  position: relative;
-}
-
-.pedido-ticket::before {
-  content: '';
-  position: absolute;
-  top: -7px;
-  left: 20px;
-  width: 14px;
-  height: 14px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 50%;
-}
-
-.pedido-num {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink-soft);
-}
-
-.pedido-ticket h3 {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 17px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.pedido-items {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.pedido-items li {
-  font-size: 14px;
-  color: var(--ink);
-  padding-left: 14px;
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.pedido-items li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 8px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-.pedido-item-qty {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent-dark);
-  background: var(--prep-bg);
-  border-radius: 999px;
-  padding: 1px 8px;
-  flex-shrink: 0;
-}
-
-.pedido-total {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 16px;
-  font-weight: 700;
-  margin: 2px 0 0;
-}
-
-.pedidos-status {
-  text-align: center;
-  color: var(--ink-soft);
-  font-size: 14px;
-  padding: 40px 0;
-}
-
-.pedidos-status.is-error {
-  color: #B33F3F;
-}
-
-/* status badge */
-
-.pedido-badge {
-  align-self: flex-start;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 5px 12px;
-  border-radius: 999px;
-  margin-top: 2px;
-}
-
-.pedido-badge.estado-0 { background: var(--wait-bg); color: var(--wait); }
-.pedido-badge.estado-1 { background: var(--prep-bg); color: var(--prep); }
-.pedido-badge.estado-2 { background: var(--done-bg); color: var(--done); }
-.pedido-badge.estado-3 { background: var(--delivered-bg); color: var(--delivered); }
-
-/* progress track */
-
-.pedido-track {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin: 6px 0 4px;
-}
-
-.pedido-track .paso {
-  height: 4px;
-  flex: 1;
-  border-radius: 2px;
-  background: var(--line);
-}
-
-.pedido-track .paso.completo {
-  background: var(--accent);
-}
-
-.pedido-actions {
-  margin-top: 6px;
-}
-
-.pedido-btn {
-  width: 100%;
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 600;
-  font-size: 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #fff;
-  padding: 10px 14px;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
-}
-
-.pedido-btn:hover:not(:disabled) {
-  background: var(--accent-dark);
-  border-color: var(--accent-dark);
-}
-
-.pedido-btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.pedido-btn:disabled {
-  background: var(--delivered-bg);
-  border-color: var(--line);
-  color: var(--ink-soft);
-  cursor: not-allowed;
-}
-
-.pedido-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pedidos-admin * {
-    transition: none !important;
-  }
-}
-
-.pedidos-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 12px;
 }
 
 .pedidos-controls {
@@ -290,12 +109,65 @@
   padding: 0;
 }
 
+/* ---------- Cuadrícula de pedidos ---------- */
+
+.pedidos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.pedidos-status {
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 14px;
+  padding: 40px 0;
+}
+
+.pedidos-status.is-error {
+  color: var(--danger);
+}
+
+/* ---------- Tarjeta de pedido (estilo ticket) ---------- */
+
+.pedido-ticket {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+/* El "hoyito" arriba de la tarjeta, como si fuera un ticket de cocina */
+.pedido-ticket::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 20px;
+  width: 14px;
+  height: 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
 .pedido-top-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+.pedido-num {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+/* Botón de ocultar (ícono de ojo tachado) */
 .pedido-hide-btn {
   background: none;
   border: none;
@@ -309,4 +181,209 @@
 .pedido-hide-btn:hover {
   color: var(--ink);
   background: var(--bg);
+}
+
+/* ---------- Lista de productos del pedido ---------- */
+
+.pedido-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pedido-items li {
+  font-size: 14px;
+  color: var(--ink);
+  padding-left: 14px;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.pedido-items li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.pedido-item-qty {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-dark);
+  background: var(--prep-bg);
+  border-radius: 999px;
+  padding: 1px 8px;
+  flex-shrink: 0;
+}
+
+/* ---------- Nota del pedido ---------- */
+
+.pedido-notas {
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--prep-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin: 2px 0;
+}
+
+.pedido-notas strong {
+  font-weight: 600;
+}
+
+.pedido-total {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 2px 0 0;
+}
+
+/* ---------- Badge de estado (En espera / En preparación / etc.) ---------- */
+
+.pedido-badge {
+  align-self: flex-start;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-top: 2px;
+}
+
+.pedido-badge.estado-0 { background: var(--wait-bg); color: var(--wait); }
+.pedido-badge.estado-1 { background: var(--prep-bg); color: var(--prep); }
+.pedido-badge.estado-2 { background: var(--done-bg); color: var(--done); }
+.pedido-badge.estado-3 { background: var(--delivered-bg); color: var(--delivered); }
+
+/* ---------- Barra de progreso de 4 pasos ---------- */
+
+.pedido-track {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0 4px;
+}
+
+.pedido-track .paso {
+  height: 4px;
+  flex: 1;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.pedido-track .paso.completo {
+  background: var(--accent);
+}
+
+/* ---------- Botones de acción (Siguiente estado / Eliminar) ---------- */
+
+.pedido-actions {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pedido-btn {
+  width: 100%;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+
+.pedido-btn:hover:not(:disabled) {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.pedido-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.pedido-btn:disabled {
+  background: var(--delivered-bg);
+  border-color: var(--line);
+  color: var(--ink-soft);
+  cursor: not-allowed;
+}
+
+.pedido-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Eliminar pedido (solo visible cuando ya está "Entregado") */
+.pedido-btn-delete {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--danger);
+  background: var(--surface);
+  color: var(--danger);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.pedido-btn-delete:hover:not(:disabled) {
+  background: var(--danger-bg);
+}
+
+.pedido-btn-delete:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pedido-confirm-delete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.pedido-confirm-delete .pedido-btn-delete {
+  width: auto;
+  flex: 1;
+}
+
+.pedido-btn-cancel {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  display: flex;
+}
+
+/* Respeta a quienes prefieren menos animaciones en su sistema */
+@media (prefers-reduced-motion: reduce) {
+  .pedidos-admin * {
+    transition: none !important;
+  }
 }
