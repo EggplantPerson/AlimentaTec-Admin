@@ -12,7 +12,7 @@ export async function getOrder(uid: string) {
     return res.json();
 }
 
-export async function createOrder(data: {uid: string; id: number; products: string[]; total: number}) {
+export async function createOrder(data: {uid: string; id: number; products: string[]; total: number; notes: string}) {
     const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json'},
@@ -22,7 +22,7 @@ export async function createOrder(data: {uid: string; id: number; products: stri
     return res.json();
 }
 
-export async function updateOrder(uid: string, data: Partial<{ products: string[]; status: string; total: number }>) {
+export async function updateOrder(uid: string, data: Partial<{ products: string[]; status: string; total: number; notes: string }>) {
     const res = await fetch(`${API_URL}/${uid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json'},

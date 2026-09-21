@@ -387,3 +387,37 @@
     transition: none !important;
   }
 }
+
+/* Hora en la que se realizó el pedido */
+.pedido-hora {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  width: fit-content;
+}
+
+/* Formulario de motivo de cancelación */
+.pedido-cancel-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pedido-cancel-motivo {
+  width: 100%;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.pedido-cancel-motivo:focus-visible {
+  outline: 2px solid var(--wait);
+  outline-offset: 1px;
+}
