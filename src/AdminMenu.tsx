@@ -154,7 +154,6 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
               <input
                 type="file"
                 accept="image/*"
-                capture="environment"
                 onChange={handleArchivoSeleccionado}
                 disabled={subiendoImagen}
                 hidden
@@ -549,7 +548,6 @@ export default function AdminMenu() {
                   <input
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     onChange={handleArchivoNuevoProducto}
                     disabled={subiendoImagenNueva}
                     hidden
