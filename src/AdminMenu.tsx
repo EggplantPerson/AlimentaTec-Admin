@@ -302,6 +302,25 @@ export default function AdminMenu() {
       queryClient.setQueryData(["storeState"], data);
     });
 
+    socket.on("product:created", (nuevoProducto: Producto) => {
+      queryClient.setQueryData<Producto[]>(["products"], (actual = []) => {
+        if (actual.some((p) => p.id === nuevoProducto.id)) return actual;
+        return [...actual, nuevoProducto];
+      });
+    });
+
+    socket.on("product:updated", (productoActualizado: Producto) => {
+      queryClient.setQueryData<Producto[]>(["productos"], (actual = []) =>
+      actual.map((p) => (p.id === productoActualizado.id ? productoActualizado : p))
+      );
+    });
+
+    socket.on("product:deleted", (data: { id: number}) => {
+      queryClient.setQueryData<Producto[]>(["products"], (actual = []) =>
+      actual.filter((p) => p.id !== data.id)
+      );
+    });
+
     return () => {
       socket.disconnect();
     };
