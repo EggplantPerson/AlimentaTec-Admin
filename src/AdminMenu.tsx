@@ -293,7 +293,7 @@ export default function AdminMenu() {
 
   const cafeteriaAbierta = storeState?.isOpen ?? true;
 
-  // Conexión en tiempo real: si otro dispositivo abre/cierra la cafetería, se refleja aquí solo
+  // Conexión en tiempo real: si otro dispositivo abre/cierra la cafetería, o crea/edita/borra un producto, se refleja aquí solo
   useEffect(() => {
     const socketUrl = import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "");
     const socket = io(socketUrl);
@@ -310,14 +310,14 @@ export default function AdminMenu() {
     });
 
     socket.on("product:updated", (productoActualizado: Producto) => {
-      queryClient.setQueryData<Producto[]>(["productos"], (actual = []) =>
-      actual.map((p) => (p.id === productoActualizado.id ? productoActualizado : p))
+      queryClient.setQueryData<Producto[]>(["products"], (actual = []) =>
+        actual.map((p) => (p.id === productoActualizado.id ? productoActualizado : p))
       );
     });
 
-    socket.on("product:deleted", (data: { id: number}) => {
+    socket.on("product:deleted", (data: { id: number }) => {
       queryClient.setQueryData<Producto[]>(["products"], (actual = []) =>
-      actual.filter((p) => p.id !== data.id)
+        actual.filter((p) => p.id !== data.id)
       );
     });
 
@@ -366,6 +366,12 @@ export default function AdminMenu() {
       setSubiendoImagenNueva(false);
       e.target.value = "";
     }
+  }
+
+  // Cierra el pop-up de "Nuevo producto" y limpia el error del formulario
+  function cerrarModal() {
+    setMostrarForm(false);
+    setFormError("");
   }
 
   // Crear producto
@@ -420,14 +426,17 @@ export default function AdminMenu() {
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
-  // Filtrado de productos: combina texto de búsqueda + categoría seleccionada
+  // Filtrado + orden alfabético: se ordena por nombre para que la posición de cada
+  // tarjeta sea siempre la misma, sin importar si cambia su disponibilidad
   const productosFiltrados = useMemo(() => {
     const q = normalizar(busqueda.trim());
-    return productos.filter((p) => {
-      const coincideTexto = !q || normalizar(p.name).includes(q);
-      const coincideCategoria = categoriaFiltro === "Todas" || p.category === categoriaFiltro;
-      return coincideTexto && coincideCategoria;
-    });
+    return productos
+      .filter((p) => {
+        const coincideTexto = !q || normalizar(p.name).includes(q);
+        const coincideCategoria = categoriaFiltro === "Todas" || p.category === categoriaFiltro;
+        return coincideTexto && coincideCategoria;
+      })
+      .sort((a, b) => normalizar(a.name).localeCompare(normalizar(b.name)));
   }, [busqueda, categoriaFiltro, productos]);
 
   // Rellenar información de producto nuevo y enviarlo a crear
@@ -499,96 +508,96 @@ export default function AdminMenu() {
             <p>Gestiona lo que se vende hoy en la cafetería</p>
           </div>
 
-          <button
-            className={`btn btn-primary ${mostrarForm ? "is-open" : ""}`}
-            onClick={() => {
-              setMostrarForm((prev) => !prev);
-              setFormError("");
-            }}
-          >
+          <button className="btn btn-primary" onClick={() => setMostrarForm(true)}>
             <Plus size={16} />
-            {mostrarForm ? "Cancelar" : "Nuevo producto"}
+            Nuevo producto
           </button>
         </div>
 
-        {/* Formulario de producto nuevo */}
+        {/* Pop-up de "Nuevo producto": fondo oscuro + formulario centrado */}
         {mostrarForm && (
-          <form className="ticket-panel" onSubmit={handleCrearProducto}>
-            <h2>Nuevo producto</h2>
-            <div className="field-grid">
-              <div className="field field-full">
-                <label>Nombre</label>
-                <input
-                  type="text"
-                  placeholder="Ej. Chilaquilitos"
-                  value={nuevoProducto.name}
-                  onChange={(e) => setNuevoProducto({ ...nuevoProducto, name: e.target.value })}
-                />
-              </div>
-              <div className="field field-full">
-                <label>Descripción</label>
-                <textarea
-                  placeholder="Ej. Chilaquiles en salsa roja"
-                  value={nuevoProducto.description}
-                  onChange={(e) => setNuevoProducto({ ...nuevoProducto, description: e.target.value })}
-                />
-              </div>
-              <div className="field">
-                <label>Categoría</label>
-                <select
-                  value={nuevoProducto.category}
-                  onChange={(e) => setNuevoProducto({ ...nuevoProducto, category: e.target.value })}
-                >
-                  <option value="">Selecciona...</option>
-                  {CATEGORIAS.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label>Precio</label>
-                <input
-                  type="number"
-                  placeholder="Ej. 45"
-                  value={nuevoProducto.price}
-                  onChange={(e) => setNuevoProducto({ ...nuevoProducto, price: e.target.value })}
-                />
-              </div>
-
-              {/* Imagen del producto nuevo */}
-              <div className="field field-full">
-                <label>Imagen</label>
-                {nuevoProducto.image_url && (
-                  <img src={nuevoProducto.image_url} alt="Vista previa" className="image-preview" />
-                )}
-                <label className="file-upload-btn">
-                  <Camera size={14} />
-                  {subiendoImagenNueva ? "Subiendo..." : "Tomar foto o subir imagen"}
+          <div className="modal-backdrop" onClick={cerrarModal}>
+            <form className="ticket-panel modal-panel" onSubmit={handleCrearProducto} onClick={(e) => e.stopPropagation()}>
+              <h2>Nuevo producto</h2>
+              <div className="field-grid">
+                <div className="field field-full">
+                  <label>Nombre</label>
                   <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleArchivoNuevoProducto}
-                    disabled={subiendoImagenNueva}
-                    hidden
+                    type="text"
+                    placeholder="Ej. Chilaquilitos"
+                    value={nuevoProducto.name}
+                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, name: e.target.value })}
                   />
-                </label>
-                <input
-                  type="text"
-                  value={nuevoProducto.image_url}
-                  onChange={(e) => setNuevoProducto({ ...nuevoProducto, image_url: e.target.value })}
-                  placeholder="O pega una URL de imagen"
-                />
+                </div>
+                <div className="field field-full">
+                  <label>Descripción</label>
+                  <textarea
+                    placeholder="Ej. Chilaquiles en salsa roja"
+                    value={nuevoProducto.description}
+                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, description: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Categoría</label>
+                  <select
+                    value={nuevoProducto.category}
+                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, category: e.target.value })}
+                  >
+                    <option value="">Selecciona...</option>
+                    {CATEGORIAS.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Precio</label>
+                  <input
+                    type="number"
+                    placeholder="Ej. 45"
+                    value={nuevoProducto.price}
+                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, price: e.target.value })}
+                  />
+                </div>
+
+                {/* Imagen del producto nuevo */}
+                <div className="field field-full">
+                  <label>Imagen</label>
+                  {nuevoProducto.image_url && (
+                    <img src={nuevoProducto.image_url} alt="Vista previa" className="image-preview" />
+                  )}
+                  <label className="file-upload-btn">
+                    <Camera size={14} />
+                    {subiendoImagenNueva ? "Subiendo..." : "Tomar foto o subir imagen"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleArchivoNuevoProducto}
+                      disabled={subiendoImagenNueva}
+                      hidden
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    value={nuevoProducto.image_url}
+                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, image_url: e.target.value })}
+                    placeholder="O pega una URL de imagen"
+                  />
+                </div>
               </div>
-            </div>
 
-            {formError && <p className="form-error">{formError}</p>}
+              {formError && <p className="form-error">{formError}</p>}
 
-            <div className="panel-actions">
-              <button type="submit" className="btn btn-primary" disabled={crearMutation.isPending || subiendoImagenNueva}>
-                {crearMutation.isPending ? "Guardando..." : "Guardar producto"}
-              </button>
-            </div>
-          </form>
+              <div className="panel-actions">
+                <button type="button" className="btn btn-secondary" onClick={cerrarModal}>
+                  <X size={14} />
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={crearMutation.isPending || subiendoImagenNueva}>
+                  {crearMutation.isPending ? "Guardando..." : "Guardar producto"}
+                </button>
+              </div>
+            </form>
+          </div>
         )}
 
         {/* Búsqueda + filtro de categoría */}

@@ -1,7 +1,7 @@
 /* Fuentes: Space Grotesk para títulos/UI, Inter para texto de cuerpo */
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
 
-/* Variables de color y layout general de la página (usa su propio scope, no choca con AdminMenu) */
+/* Variables de color y layout general de la página */
 .pedidos-admin {
   --bg: #F6F7F2;
   --surface: #FFFFFF;
@@ -40,7 +40,7 @@
   margin: 0 auto;
 }
 
-/* ---------- Encabezado + controles (Ver entregados / Mostrar ocultos) ---------- */
+/* ---------- Encabezado + controles (Ver finalizados / Mostrar ocultos) ---------- */
 
 .pedidos-header {
   display: flex;
@@ -183,6 +183,16 @@
   background: var(--bg);
 }
 
+/* Hora en la que se realizó el pedido */
+.pedido-hora {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  width: fit-content;
+}
+
 /* ---------- Lista de productos del pedido ---------- */
 
 .pedido-items {
@@ -249,22 +259,36 @@
   margin: 2px 0 0;
 }
 
-/* ---------- Badge de estado (En espera / En preparación / etc.) ---------- */
+/* ---------- Estado actual + vista previa del siguiente estado ---------- */
+
+.pedido-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
 .pedido-badge {
-  align-self: flex-start;
   font-family: 'Space Grotesk', sans-serif;
   font-size: 12px;
   font-weight: 600;
   padding: 5px 12px;
   border-radius: 999px;
-  margin-top: 2px;
 }
 
 .pedido-badge.estado-0 { background: var(--wait-bg); color: var(--wait); }
 .pedido-badge.estado-1 { background: var(--prep-bg); color: var(--prep); }
 .pedido-badge.estado-2 { background: var(--done-bg); color: var(--done); }
 .pedido-badge.estado-3 { background: var(--delivered-bg); color: var(--delivered); }
+.pedido-badge.estado-cancelado { background: var(--danger-bg); color: var(--danger); }
+
+.pedido-next-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
 
 /* ---------- Barra de progreso de 4 pasos ---------- */
 
@@ -286,7 +310,7 @@
   background: var(--accent);
 }
 
-/* ---------- Botones de acción (Siguiente estado / Eliminar) ---------- */
+/* ---------- Botones de acción (Siguiente estado / Cancelar / Eliminar) ---------- */
 
 .pedido-actions {
   margin-top: 6px;
@@ -330,7 +354,46 @@
   outline-offset: 1px;
 }
 
-/* Eliminar pedido (solo visible cuando ya está "Entregado") */
+/* Cancelar pedido (tono ámbar de advertencia, distinto del rojo de eliminar) */
+.pedido-btn-warn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--wait);
+  background: var(--surface);
+  color: var(--wait);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.pedido-btn-warn:hover:not(:disabled) {
+  background: var(--wait-bg);
+}
+
+.pedido-btn-warn-confirm {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--wait);
+  background: var(--wait);
+  color: #fff;
+  padding: 6px 10px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.pedido-btn-warn-confirm:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+/* Eliminar pedido (solo visible cuando ya está finalizado: entregado o cancelado) */
 .pedido-btn-delete {
   width: 100%;
   display: inline-flex;
@@ -346,6 +409,7 @@
   color: var(--danger);
   padding: 8px 12px;
   cursor: pointer;
+  flex: 1;
 }
 
 .pedido-btn-delete:hover:not(:disabled) {
@@ -357,7 +421,8 @@
   cursor: not-allowed;
 }
 
-.pedido-confirm-delete {
+/* Fila de confirmación genérica (usada tanto para cancelar como para eliminar) */
+.pedido-confirm-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -366,12 +431,7 @@
   color: var(--ink);
 }
 
-.pedido-confirm-delete .pedido-btn-delete {
-  width: auto;
-  flex: 1;
-}
-
-.pedido-btn-cancel {
+.pedido-btn-cancel-x {
   background: none;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -379,23 +439,6 @@
   cursor: pointer;
   color: var(--ink-soft);
   display: flex;
-}
-
-/* Respeta a quienes prefieren menos animaciones en su sistema */
-@media (prefers-reduced-motion: reduce) {
-  .pedidos-admin * {
-    transition: none !important;
-  }
-}
-
-/* Hora en la que se realizó el pedido */
-.pedido-hora {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--ink-soft);
-  width: fit-content;
 }
 
 /* Formulario de motivo de cancelación */
@@ -420,4 +463,11 @@
 .pedido-cancel-motivo:focus-visible {
   outline: 2px solid var(--wait);
   outline-offset: 1px;
+}
+
+/* Respeta a quienes prefieren menos animaciones en su sistema */
+@media (prefers-reduced-motion: reduce) {
+  .pedidos-admin * {
+    transition: none !important;
+  }
 }
