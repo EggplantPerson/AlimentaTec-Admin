@@ -572,3 +572,27 @@ button:focus-visible {
     font-size: 24px;
   }
 }
+
+/* ---------- Pop-up de "Nuevo producto" ---------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 38, 34, 0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.modal-panel {
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: 0;
+}
+
+.modal-panel .panel-actions {
+  justify-content: space-between;
+}
