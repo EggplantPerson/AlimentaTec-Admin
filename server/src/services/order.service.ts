@@ -9,13 +9,13 @@ export const getOrderByUid = (uid: string) => {
     return prisma.order.findUnique({ where: {uid}});
 }
 
-export const createOrder = async (data: {uid: string; id: number; products: string[]; total: number; notes: string}) => {
+export const createOrder = async (data: {uid: string; id: number; products: string[]; total: number; notes: string; orderTime: Date}) => {
     const order = await prisma.order.create({ data });
     io.emit('order:created', order);
     return order;
 };
 
-export const updateOrder = async (uid: string, data: Partial<{ products: string[]; status: string; total: number; note: string }>) => {
+export const updateOrder = async (uid: string, data: Partial<{ products: string[]; status: string; total: number; note: string; orderTime: Date }>) => {
     const order = await prisma.order.update({where: {uid}, data});
     io.emit('order:updated', order);
     return order;
