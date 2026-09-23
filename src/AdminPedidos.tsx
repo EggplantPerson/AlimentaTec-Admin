@@ -104,10 +104,10 @@ function OrderCard({ order, nombresPorId, onAvanzar, onCancelar, onOcultar, onEl
     }
   }
 
-  // Cancelar: el motivo se agrega a la nota existente 
+ // Cancelar: se vacía la nota original y se reemplaza únicamente por el motivo de cancelación
   function confirmarYCancelar() {
     const motivo = motivoCancelacion.trim();
-    const notasFinales = `[Cancelado] ${motivo || "Sin motivo especificado"}`;
+    const notasFinales = motivo || "Sin motivo especificado";
     onCancelar(order.uid, notasFinales);
     setConfirmarCancelar(false);
     setMotivoCancelacion("");
