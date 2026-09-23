@@ -1,7 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { Edit2, Search, X, Plus, Check, Trash2 } from "lucide-react";
+import { io } from "socket.io-client";
+import { Edit2, Search, X, Plus, Check, Trash2, Lock, Unlock, Camera } from "lucide-react";
 import { getProducts, createProduct, updateProduct, deleteProduct } from "./services/product.service";
+import { getStoreState, updateStoreState } from "./services/storeState.service";
+import { uploadImage } from "./services/upload.service";
 import "./AdminMenu.css";
 
 const CATEGORIAS = ["Comidas", "Bebidas", "Snacks"] as const;
@@ -25,10 +28,14 @@ interface ProductCardProps {
   eliminando: boolean;
 }
 
+// Tarjeta individual de producto: muestra vista normal; al editar, abre un pop-up igual al de "Nuevo producto"
 function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, eliminando }: ProductCardProps) {
   const [editando, setEditando] = useState(false);
   const [editError, setEditError] = useState("");
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+
+  // Copia local editable del producto (no se toca el original hasta guardar)
   const [form, setForm] = useState({
     name: producto.name,
     description: producto.description,
@@ -37,10 +44,45 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
     image_url: producto.image_url,
   });
 
+  // Bloquear el scroll de fondo (incluyendo la rueda del mouse) mientras el pop-up está abierto
+  useEffect(() => {
+    if (editando) {
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+    } else {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    };
+  }, [editando]);
+
+  // Cambiar disponibilidad (Disponible / Agotado) — se guarda de inmediato, sin pasar por "Guardar"
   function handleCambiarDisponibilidad(nuevoValor: boolean) {
     onGuardarEdicion(producto.id, { available: nuevoValor });
   }
 
+  // Subida de imagen: toma el archivo elegido (cámara o galería), lo sube al bucket
+  // y guarda la URL pública resultante en el formulario
+  async function handleArchivoSeleccionado(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+    setSubiendoImagen(true);
+    setEditError("");
+    try {
+      const { publicUrl } = await uploadImage(archivo);
+      setForm((prev) => ({ ...prev, image_url: publicUrl }));
+    } catch {
+      setEditError("No se pudo subir la imagen. Intenta de nuevo o pega una URL manual.");
+    } finally {
+      setSubiendoImagen(false);
+      e.target.value = "";
+    }
+  }
+
+  // Validar y guardar cambios del producto editado
   function handleGuardar() {
     const precioNumero = Number(form.price);
     if (!form.name.trim() || !form.category.trim() || isNaN(precioNumero)) {
@@ -59,6 +101,7 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
     setEditando(false);
   }
 
+  // Descartar cambios, cerrar el pop-up y volver el formulario a los valores originales
   function handleCancelar() {
     setForm({
       name: producto.name,
@@ -71,150 +114,177 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
     setEditando(false);
   }
 
-  if (editando) {
-    return (
-      <div className="ticket is-editing">
-        <div className="ticket-edit">
-          <div className="field">
-            <label>Nombre</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Nombre"
-            />
-          </div>
-          <div className="field">
-            <label>Descripción</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Descripción"
-            />
-          </div>
-          <div className="field">
-            <label>Categoría</label>
-            <select
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-            >
-              {CATEGORIAS.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label>Precio</label>
-            <input
-              type="number"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-              placeholder="Precio"
-            />
-          </div>
-          <div className="field">
-            <label>URL de imagen</label>
-            <input
-              type="text"
-              value={form.image_url}
-              onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-              placeholder="URL de imagen"
-            />
-          </div>
-
-          {editError && <p className="form-error">{editError}</p>}
-
-          <div className="edit-actions">
-            <button className="btn btn-primary" onClick={handleGuardar} disabled={guardando}>
-              <Check size={14} />
-              {guardando ? "Guardando..." : "Guardar"}
-            </button>
-            <button className="btn btn-secondary" onClick={handleCancelar} disabled={guardando}>
-              <X size={14} />
-              Cancelar
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="ticket">
-      <img src={producto.image_url} alt={producto.name} className="ticket-image" />
-      <div className="ticket-body">
-        <span className="ticket-category">{producto.category}</span>
-        <h3>{producto.name}</h3>
-        <p className="ticket-desc">{producto.description}</p>
-        <p className="ticket-price">${producto.price}</p>
+    <>
+      <div className="ticket">
+        <img src={producto.image_url} alt={producto.name} className="ticket-image" />
+        <div className="ticket-body">
+          <span className="ticket-category">{producto.category}</span>
+          <h3>{producto.name}</h3>
+          <p className="ticket-desc">{producto.description}</p>
+          <p className="ticket-price">${producto.price}</p>
 
-        <div className="avail-toggle" role="group" aria-label={`Disponibilidad de ${producto.name}`}>
-          <button
-            type="button"
-            className={`is-available ${producto.available ? "is-active" : ""}`}
-            aria-pressed={producto.available}
-            onClick={() => handleCambiarDisponibilidad(true)}
-            disabled={guardando}
-          >
-            Disponible
-          </button>
-          <button
-            type="button"
-            className={`is-out ${!producto.available ? "is-active" : ""}`}
-            aria-pressed={!producto.available}
-            onClick={() => handleCambiarDisponibilidad(false)}
-            disabled={guardando}
-          >
-            Agotado
-          </button>
-        </div>
+          {/* Toggle de disponibilidad */}
+          <div className="avail-toggle" role="group" aria-label={`Disponibilidad de ${producto.name}`}>
+            <button
+              type="button"
+              className={`is-available ${producto.available ? "is-active" : ""}`}
+              aria-pressed={producto.available}
+              onClick={() => handleCambiarDisponibilidad(true)}
+              disabled={guardando}
+            >
+              Disponible
+            </button>
+            <button
+              type="button"
+              className={`is-out ${!producto.available ? "is-active" : ""}`}
+              aria-pressed={!producto.available}
+              onClick={() => handleCambiarDisponibilidad(false)}
+              disabled={guardando}
+            >
+              Agotado
+            </button>
+          </div>
 
-        <div className="ticket-footer">
-          {confirmarBorrado ? (
-            <>
-              <button
-                className="btn btn-danger"
-                onClick={() => onEliminar(producto.id)}
-                disabled={eliminando}
-              >
-                <Trash2 size={14} />
-                {eliminando ? "Eliminando..." : "Confirmar"}
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setConfirmarBorrado(false)}
-                disabled={eliminando}
-              >
-                <X size={14} />
-              </button>
-            </>
-          ) : (
-            <>
-              <button className="btn btn-secondary" onClick={() => setEditando(true)}>
-                <Edit2 size={14} />
-                Editar
-              </button>
-              <button
-                className="btn btn-danger-outline"
-                onClick={() => setConfirmarBorrado(true)}
-                aria-label={`Eliminar ${producto.name}`}
-              >
-                <Trash2 size={14} />
-              </button>
-            </>
-          )}
+          {/* Botones Editar / Eliminar (con confirmación antes de borrar) */}
+          <div className="ticket-footer">
+            {confirmarBorrado ? (
+              <>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => onEliminar(producto.id)}
+                  disabled={eliminando}
+                >
+                  <Trash2 size={14} />
+                  {eliminando ? "Eliminando..." : "Confirmar"}
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setConfirmarBorrado(false)}
+                  disabled={eliminando}
+                >
+                  <X size={14} />
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-secondary" onClick={() => setEditando(true)}>
+                  <Edit2 size={14} />
+                  Editar
+                </button>
+                <button
+                  className="btn btn-danger-outline"
+                  onClick={() => setConfirmarBorrado(true)}
+                  aria-label={`Eliminar ${producto.name}`}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Pop-up de editar producto: mismo estilo que el de "Nuevo producto" */}
+      {editando && (
+        <div className="modal-backdrop" onClick={handleCancelar}>
+          <div className="ticket-panel modal-panel" onClick={(e) => e.stopPropagation()}>
+            <h2>Editar producto</h2>
+            <div className="field-grid">
+              <div className="field field-full">
+                <label>Nombre</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Nombre"
+                />
+              </div>
+              <div className="field field-full">
+                <label>Descripción</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Descripción"
+                />
+              </div>
+              <div className="field">
+                <label>Categoría</label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                >
+                  {CATEGORIAS.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>Precio</label>
+                <input
+                  type="number"
+                  value={form.price}
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  placeholder="Precio"
+                />
+              </div>
+
+              {/* Imagen: vista previa + botón de cámara/galería + URL manual de respaldo */}
+              <div className="field field-full">
+                <label>Imagen</label>
+                {form.image_url && (
+                  <img src={form.image_url} alt="Vista previa" className="image-preview" />
+                )}
+                <label className="file-upload-btn">
+                  <Camera size={14} />
+                  {subiendoImagen ? "Subiendo..." : "Tomar foto o subir imagen"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleArchivoSeleccionado}
+                    disabled={subiendoImagen}
+                    hidden
+                  />
+                </label>
+                <input
+                  type="text"
+                  value={form.image_url}
+                  onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+                  placeholder="O pega una URL de imagen"
+                />
+              </div>
+            </div>
+
+            {editError && <p className="form-error">{editError}</p>}
+
+            <div className="panel-actions">
+              <button type="button" className="btn btn-secondary" onClick={handleCancelar} disabled={guardando}>
+                <X size={14} />
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={handleGuardar} disabled={guardando || subiendoImagen}>
+                <Check size={14} />
+                {guardando ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
 export default function AdminMenu() {
   const queryClient = useQueryClient();
+
+  // Estado de búsqueda, filtro de categoría y formulario de nuevo producto
   const [busqueda, setBusqueda] = useState("");
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>("Todas");
   const [mostrarForm, setMostrarForm] = useState(false);
   const [formError, setFormError] = useState("");
+  const [confirmarDescartar, setConfirmarDescartar] = useState(false);
+  const [confirmarCierre, setConfirmarCierre] = useState(false);
+  const [subiendoImagenNueva, setSubiendoImagenNueva] = useState(false);
   const [nuevoProducto, setNuevoProducto] = useState({
     name: "",
     description: "",
@@ -223,6 +293,7 @@ export default function AdminMenu() {
     image_url: ""
   });
 
+  // Obtención de datos: lista de productos desde el backend
   const {
     data: productos = [],
     isLoading,
@@ -232,19 +303,139 @@ export default function AdminMenu() {
     queryFn: getProducts,
   });
 
+  // Obtención de datos: estado actual de la cafetería (abierta/cerrada)
+  const { data: storeState } = useQuery<{ isOpen: boolean }>({
+    queryKey: ["storeState"],
+    queryFn: getStoreState,
+  });
+
+  const cafeteriaAbierta = storeState?.isOpen ?? true;
+
+  // Bloquear el scroll de fondo (incluyendo la rueda del mouse) mientras el pop-up está abierto
+  useEffect(() => {
+    if (mostrarForm) {
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+    } else {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    };
+  }, [mostrarForm]);
+
+  // Conexión en tiempo real: si otro dispositivo abre/cierra la cafetería, o crea/edita/borra un producto, se refleja aquí solo
+  useEffect(() => {
+    const socketUrl = import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "");
+    const socket = io(socketUrl);
+
+    socket.on("storeState:updated", (data: { isOpen: boolean }) => {
+      queryClient.setQueryData(["storeState"], data);
+    });
+
+    socket.on("product:created", (nuevoProducto: Producto) => {
+      queryClient.setQueryData<Producto[]>(["products"], (actual = []) => {
+        if (actual.some((p) => p.id === nuevoProducto.id)) return actual;
+        return [...actual, nuevoProducto];
+      });
+    });
+
+    socket.on("product:updated", (productoActualizado: Producto) => {
+      queryClient.setQueryData<Producto[]>(["products"], (actual = []) =>
+        actual.map((p) => (p.id === productoActualizado.id ? productoActualizado : p))
+      );
+    });
+
+    socket.on("product:deleted", (data: { id: number }) => {
+      queryClient.setQueryData<Producto[]>(["products"], (actual = []) =>
+        actual.filter((p) => p.id !== data.id)
+      );
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [queryClient]);
+
+  // Apertura/cierre de la cafetería
+  const storeStateMutation = useMutation({
+    mutationFn: (isOpen: boolean) => updateStoreState({ isOpen }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["storeState"], data);
+    },
+    onError: () => {
+      alert("No se pudo cambiar el estado de la cafetería. Intenta de nuevo.");
+    },
+  });
+
+  // Si está abierta y le dan a "Cerrar", primero pide confirmación
+  function handleToggleCafeteria() {
+    if (cafeteriaAbierta) {
+      setConfirmarCierre(true);
+      return;
+    }
+    storeStateMutation.mutate(true);
+  }
+
+  function confirmarYCerrar() {
+    storeStateMutation.mutate(false);
+    setConfirmarCierre(false);
+  }
+
+  // Subida de imagen para el formulario de producto nuevo
+  async function handleArchivoNuevoProducto(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+    setSubiendoImagenNueva(true);
+    setFormError("");
+    try {
+      const { publicUrl } = await uploadImage(archivo);
+      setNuevoProducto((prev) => ({ ...prev, image_url: publicUrl }));
+    } catch {
+      setFormError("No se pudo subir la imagen. Intenta de nuevo o pega una URL manual.");
+    } finally {
+      setSubiendoImagenNueva(false);
+      e.target.value = "";
+    }
+  }
+
+  // ¿Hay texto escrito en algún campo del formulario de nuevo producto?
+  function hayContenidoSinGuardar() {
+    return Object.values(nuevoProducto).some((valor) => valor.trim() !== "");
+  }
+
+  // Al intentar cerrar (clic afuera o botón Cancelar): si hay texto, pide confirmación primero
+  function solicitarCerrarModal() {
+    if (hayContenidoSinGuardar()) {
+      setConfirmarDescartar(true);
+      return;
+    }
+    cerrarModalDefinitivo();
+  }
+
+  // Cierra de verdad el pop-up y resetea todo
+  function cerrarModalDefinitivo() {
+    setMostrarForm(false);
+    setFormError("");
+    setConfirmarDescartar(false);
+    setNuevoProducto({ name: "", description: "", category: "", price: "", image_url: "" });
+  }
+
+  // Crear producto
   const crearMutation = useMutation({
     mutationFn: createProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      setNuevoProducto({ name: "", description: "", category: "", price: "", image_url: "" });
-      setFormError("");
-      setMostrarForm(false);
+      cerrarModalDefinitivo();
     },
     onError: () => {
       setFormError("Ocurrió un error al crear el producto. Intenta de nuevo.");
     },
   });
 
+  // Editar producto existente
   const editarMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<{ name: string; description: string; category: string; price: number; image_url: string; available: boolean }> }) =>
       updateProduct(id, data),
@@ -256,6 +447,7 @@ export default function AdminMenu() {
     },
   });
 
+  // Eliminar producto
   const eliminarMutation = useMutation({
     mutationFn: (id: number) => deleteProduct(id),
     onSuccess: () => {
@@ -274,21 +466,27 @@ export default function AdminMenu() {
     eliminarMutation.mutate(id);
   }
 
+  // Quita acentos para que la búsqueda no distinga "café" de "cafe"
   const normalizar = (texto: string) =>
     texto
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
+  // Filtrado + orden alfabético: se ordena por nombre para que la posición de cada
+  // tarjeta sea siempre la misma, sin importar si cambia su disponibilidad
   const productosFiltrados = useMemo(() => {
     const q = normalizar(busqueda.trim());
-    return productos.filter((p) => {
-      const coincideTexto = !q || normalizar(p.name).includes(q);
-      const coincideCategoria = categoriaFiltro === "Todas" || p.category === categoriaFiltro;
-      return coincideTexto && coincideCategoria;
-    });
+    return productos
+      .filter((p) => {
+        const coincideTexto = !q || normalizar(p.name).includes(q);
+        const coincideCategoria = categoriaFiltro === "Todas" || p.category === categoriaFiltro;
+        return coincideTexto && coincideCategoria;
+      })
+      .sort((a, b) => normalizar(a.name).localeCompare(normalizar(b.name)));
   }, [busqueda, categoriaFiltro, productos]);
 
+  // Rellenar información de producto nuevo y enviarlo a crear
   function handleCrearProducto(e: React.FormEvent) {
     e.preventDefault();
 
@@ -314,87 +512,157 @@ export default function AdminMenu() {
   return (
     <div className="menu-admin">
       <div className="menu-admin__inner">
+
+        {/* Barra de estado: abrir/cerrar la cafetería */}
+        <div className={`shop-status-bar ${cafeteriaAbierta ? "is-open" : "is-closed"}`}>
+          <div className="shop-status-text">
+            <span className="shop-status-dot" />
+            {cafeteriaAbierta
+              ? "Cafetería abierta — se pueden hacer pedidos"
+              : "Cafetería cerrada — no se pueden hacer pedidos"}
+          </div>
+
+          {confirmarCierre ? (
+            <div className="shop-status-confirm">
+              <span>¿Cerrar la cafetería ahora?</span>
+              <button className="btn btn-danger" onClick={confirmarYCerrar} disabled={storeStateMutation.isPending}>
+                Sí, cerrar
+              </button>
+              <button className="btn btn-secondary" onClick={() => setConfirmarCierre(false)}>
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              className={`btn ${cafeteriaAbierta ? "btn-danger-outline" : "btn-primary"}`}
+              onClick={handleToggleCafeteria}
+              disabled={storeStateMutation.isPending}
+            >
+              {cafeteriaAbierta ? <Lock size={14} /> : <Unlock size={14} />}
+              {storeStateMutation.isPending
+                ? "Actualizando..."
+                : cafeteriaAbierta
+                ? "Cerrar cafetería"
+                : "Abrir cafetería"}
+            </button>
+          )}
+        </div>
+
+        {/* Encabezado */}
         <div className="menu-header">
           <div>
             <h1>Menú del día</h1>
             <p>Gestiona lo que se vende hoy en la cafetería</p>
           </div>
 
-          <button
-            className={`btn btn-primary ${mostrarForm ? "is-open" : ""}`}
-            onClick={() => {
-              setMostrarForm((prev) => !prev);
-              setFormError("");
-            }}
-          >
+          <button className="btn btn-primary" onClick={() => setMostrarForm(true)}>
             <Plus size={16} />
-            {mostrarForm ? "Cancelar" : "Nuevo producto"}
+            Nuevo producto
           </button>
         </div>
 
+        {/* Pop-up de "Nuevo producto": fondo oscuro + formulario centrado */}
         {mostrarForm && (
-          <form className="ticket-panel" onSubmit={handleCrearProducto}>
-            <h2>Nuevo producto</h2>
-            <div className="field-grid">
-              <div className="field field-full">
-                <label>Nombre</label>
-                <input
-                  type="text"
-                  placeholder="Ej. Chilaquilitos"
-                  value={nuevoProducto.name}
-                  onChange={(e) => setNuevoProducto({ ...nuevoProducto, name: e.target.value })}
-                />
-              </div>
-              <div className="field field-full">
-                <label>Descripción</label>
-                <textarea
-                  placeholder="Ej. Chilaquiles en salsa roja"
-                  value={nuevoProducto.description}
-                  onChange={(e) => setNuevoProducto({ ...nuevoProducto, description: e.target.value })}
-                />
-              </div>
-              <div className="field">
-                <label>Categoría</label>
-                <select
-                  value={nuevoProducto.category}
-                  onChange={(e) => setNuevoProducto({ ...nuevoProducto, category: e.target.value })}
-                >
-                  <option value="">Selecciona...</option>
-                  {CATEGORIAS.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label>Precio</label>
-                <input
-                  type="number"
-                  placeholder="Ej. 45"
-                  value={nuevoProducto.price}
-                  onChange={(e) => setNuevoProducto({ ...nuevoProducto, price: e.target.value })}
-                />
-              </div>
-              <div className="field field-full">
-                <label>URL de imagen</label>
-                <input
-                  type="text"
-                  placeholder="https://..."
-                  value={nuevoProducto.image_url}
-                  onChange={(e) => setNuevoProducto({ ...nuevoProducto, image_url: e.target.value })}
-                />
-              </div>
-            </div>
+          <div className="modal-backdrop" onClick={solicitarCerrarModal}>
+            <form className="ticket-panel modal-panel" onSubmit={handleCrearProducto} onClick={(e) => e.stopPropagation()}>
+              <h2>Nuevo producto</h2>
 
-            {formError && <p className="form-error">{formError}</p>}
+              {confirmarDescartar && (
+                <div className="discard-warning">
+                  <span>Tienes cambios sin guardar. ¿Cerrar de todas formas?</span>
+                  <div className="discard-warning-actions">
+                    <button type="button" className="btn btn-danger" onClick={cerrarModalDefinitivo}>
+                      Sí, descartar
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setConfirmarDescartar(false)}>
+                      Seguir editando
+                    </button>
+                  </div>
+                </div>
+              )}
 
-            <div className="panel-actions">
-              <button type="submit" className="btn btn-primary" disabled={crearMutation.isPending}>
-                {crearMutation.isPending ? "Guardando..." : "Guardar producto"}
-              </button>
-            </div>
-          </form>
+              <div className="field-grid">
+                <div className="field field-full">
+                  <label>Nombre</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Chilaquilitos"
+                    value={nuevoProducto.name}
+                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, name: e.target.value })}
+                  />
+                </div>
+                <div className="field field-full">
+                  <label>Descripción</label>
+                  <textarea
+                    placeholder="Ej. Chilaquiles en salsa roja"
+                    value={nuevoProducto.description}
+                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, description: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Categoría</label>
+                  <select
+                    value={nuevoProducto.category}
+                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, category: e.target.value })}
+                  >
+                    <option value="">Selecciona...</option>
+                    {CATEGORIAS.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Precio</label>
+                  <input
+                    type="number"
+                    placeholder="Ej. 45"
+                    value={nuevoProducto.price}
+                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, price: e.target.value })}
+                  />
+                </div>
+
+                {/* Imagen del producto nuevo */}
+                <div className="field field-full">
+                  <label>Imagen</label>
+                  {nuevoProducto.image_url && (
+                    <img src={nuevoProducto.image_url} alt="Vista previa" className="image-preview" />
+                  )}
+                  <label className="file-upload-btn">
+                    <Camera size={14} />
+                    {subiendoImagenNueva ? "Subiendo..." : "Tomar foto o subir imagen"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleArchivoNuevoProducto}
+                      disabled={subiendoImagenNueva}
+                      hidden
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    value={nuevoProducto.image_url}
+                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, image_url: e.target.value })}
+                    placeholder="O pega una URL de imagen"
+                  />
+                </div>
+              </div>
+
+              {formError && <p className="form-error">{formError}</p>}
+
+              <div className="panel-actions">
+                <button type="button" className="btn btn-secondary" onClick={solicitarCerrarModal}>
+                  <X size={14} />
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={crearMutation.isPending || subiendoImagenNueva}>
+                  {crearMutation.isPending ? "Guardando..." : "Guardar producto"}
+                </button>
+              </div>
+            </form>
+          </div>
         )}
 
+        {/* Búsqueda + filtro de categoría */}
         <div className="filters-row">
           <div className="search-box">
             <Search size={16} className="icon-search" />
@@ -430,6 +698,7 @@ export default function AdminMenu() {
           </div>
         </div>
 
+        {/* Lista de productos (o estado de carga / error / vacío) */}
         {isLoading ? (
           <p className="status-text">Cargando productos...</p>
         ) : isError ? (

@@ -13,7 +13,7 @@ export const getStoreState = async (req: Request, res: Response, next: NextFunct
 
 export const updateStoreState = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const storeState = await storeStateService.updateStoreState(1, req.body);
+        const storeState = await storeStateService.updateStoreState(Number(req.params.id), req.body);
         res.json(storeState)
     } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {

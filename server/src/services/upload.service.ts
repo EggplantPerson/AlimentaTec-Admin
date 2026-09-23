@@ -13,6 +13,7 @@ export const getPresignedUploadUrl = async(fileExtension: string, contentType: s
     });
 
     const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 }); //Url expira en 5 minutos
+    const publicUrl = `${process.env.AWS_ENDPOINT_URL_S3}/${process.env.S3_BUCKET}/${key}`
 
-    return { uploadUrl, key }
+    return { uploadUrl, publicUrl, key }
 };
