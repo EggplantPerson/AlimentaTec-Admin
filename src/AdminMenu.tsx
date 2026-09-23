@@ -28,7 +28,7 @@ interface ProductCardProps {
   eliminando: boolean;
 }
 
-// Tarjeta individual de producto: muestra vista normal o formulario de edición
+// Tarjeta individual de producto: muestra vista normal; al editar, abre un pop-up igual al de "Nuevo producto"
 function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, eliminando }: ProductCardProps) {
   const [editando, setEditando] = useState(false);
   const [editError, setEditError] = useState("");
@@ -43,6 +43,21 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
     price: String(producto.price),
     image_url: producto.image_url,
   });
+
+  // Bloquear el scroll de fondo (incluyendo la rueda del mouse) mientras el pop-up está abierto
+  useEffect(() => {
+    if (editando) {
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+    } else {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    };
+  }, [editando]);
 
   // Cambiar disponibilidad (Disponible / Agotado) — se guarda de inmediato, sin pasar por "Guardar"
   function handleCambiarDisponibilidad(nuevoValor: boolean) {
@@ -86,7 +101,7 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
     setEditando(false);
   }
 
-  // Descartar cambios y volver el formulario a los valores originales
+  // Descartar cambios, cerrar el pop-up y volver el formulario a los valores originales
   function handleCancelar() {
     setForm({
       name: producto.name,
@@ -99,161 +114,163 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
     setEditando(false);
   }
 
-  // ---------- Vista de edición ----------
-  if (editando) {
-    return (
-      <div className="ticket is-editing">
-        <div className="ticket-edit">
-          <div className="field">
-            <label>Nombre</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Nombre"
-            />
-          </div>
-          <div className="field">
-            <label>Descripción</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Descripción"
-            />
-          </div>
-          <div className="field">
-            <label>Categoría</label>
-            <select
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-            >
-              {CATEGORIAS.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label>Precio</label>
-            <input
-              type="number"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-              placeholder="Precio"
-            />
-          </div>
-
-          {/* Imagen: vista previa + botón de cámara/galería + URL manual de respaldo */}
-          <div className="field">
-            <label>Imagen</label>
-            {form.image_url && (
-              <img src={form.image_url} alt="Vista previa" className="image-preview" />
-            )}
-            <label className="file-upload-btn">
-              <Camera size={14} />
-              {subiendoImagen ? "Subiendo..." : "Tomar foto o subir imagen"}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleArchivoSeleccionado}
-                disabled={subiendoImagen}
-                hidden
-              />
-            </label>
-            <input
-              type="text"
-              value={form.image_url}
-              onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-              placeholder="O pega una URL de imagen"
-            />
-          </div>
-
-          {editError && <p className="form-error">{editError}</p>}
-
-          <div className="edit-actions">
-            <button className="btn btn-primary" onClick={handleGuardar} disabled={guardando || subiendoImagen}>
-              <Check size={14} />
-              {guardando ? "Guardando..." : "Guardar"}
-            </button>
-            <button className="btn btn-secondary" onClick={handleCancelar} disabled={guardando}>
-              <X size={14} />
-              Cancelar
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ---------- Vista normal (no editando) ----------
   return (
-    <div className="ticket">
-      <img src={producto.image_url} alt={producto.name} className="ticket-image" />
-      <div className="ticket-body">
-        <span className="ticket-category">{producto.category}</span>
-        <h3>{producto.name}</h3>
-        <p className="ticket-desc">{producto.description}</p>
-        <p className="ticket-price">${producto.price}</p>
+    <>
+      <div className="ticket">
+        <img src={producto.image_url} alt={producto.name} className="ticket-image" />
+        <div className="ticket-body">
+          <span className="ticket-category">{producto.category}</span>
+          <h3>{producto.name}</h3>
+          <p className="ticket-desc">{producto.description}</p>
+          <p className="ticket-price">${producto.price}</p>
 
-        {/* Toggle de disponibilidad */}
-        <div className="avail-toggle" role="group" aria-label={`Disponibilidad de ${producto.name}`}>
-          <button
-            type="button"
-            className={`is-available ${producto.available ? "is-active" : ""}`}
-            aria-pressed={producto.available}
-            onClick={() => handleCambiarDisponibilidad(true)}
-            disabled={guardando}
-          >
-            Disponible
-          </button>
-          <button
-            type="button"
-            className={`is-out ${!producto.available ? "is-active" : ""}`}
-            aria-pressed={!producto.available}
-            onClick={() => handleCambiarDisponibilidad(false)}
-            disabled={guardando}
-          >
-            Agotado
-          </button>
-        </div>
+          {/* Toggle de disponibilidad */}
+          <div className="avail-toggle" role="group" aria-label={`Disponibilidad de ${producto.name}`}>
+            <button
+              type="button"
+              className={`is-available ${producto.available ? "is-active" : ""}`}
+              aria-pressed={producto.available}
+              onClick={() => handleCambiarDisponibilidad(true)}
+              disabled={guardando}
+            >
+              Disponible
+            </button>
+            <button
+              type="button"
+              className={`is-out ${!producto.available ? "is-active" : ""}`}
+              aria-pressed={!producto.available}
+              onClick={() => handleCambiarDisponibilidad(false)}
+              disabled={guardando}
+            >
+              Agotado
+            </button>
+          </div>
 
-        {/* Botones Editar / Eliminar (con confirmación antes de borrar) */}
-        <div className="ticket-footer">
-          {confirmarBorrado ? (
-            <>
-              <button
-                className="btn btn-danger"
-                onClick={() => onEliminar(producto.id)}
-                disabled={eliminando}
-              >
-                <Trash2 size={14} />
-                {eliminando ? "Eliminando..." : "Confirmar"}
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setConfirmarBorrado(false)}
-                disabled={eliminando}
-              >
-                <X size={14} />
-              </button>
-            </>
-          ) : (
-            <>
-              <button className="btn btn-secondary" onClick={() => setEditando(true)}>
-                <Edit2 size={14} />
-                Editar
-              </button>
-              <button
-                className="btn btn-danger-outline"
-                onClick={() => setConfirmarBorrado(true)}
-                aria-label={`Eliminar ${producto.name}`}
-              >
-                <Trash2 size={14} />
-              </button>
-            </>
-          )}
+          {/* Botones Editar / Eliminar (con confirmación antes de borrar) */}
+          <div className="ticket-footer">
+            {confirmarBorrado ? (
+              <>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => onEliminar(producto.id)}
+                  disabled={eliminando}
+                >
+                  <Trash2 size={14} />
+                  {eliminando ? "Eliminando..." : "Confirmar"}
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setConfirmarBorrado(false)}
+                  disabled={eliminando}
+                >
+                  <X size={14} />
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-secondary" onClick={() => setEditando(true)}>
+                  <Edit2 size={14} />
+                  Editar
+                </button>
+                <button
+                  className="btn btn-danger-outline"
+                  onClick={() => setConfirmarBorrado(true)}
+                  aria-label={`Eliminar ${producto.name}`}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Pop-up de editar producto: mismo estilo que el de "Nuevo producto" */}
+      {editando && (
+        <div className="modal-backdrop" onClick={handleCancelar}>
+          <div className="ticket-panel modal-panel" onClick={(e) => e.stopPropagation()}>
+            <h2>Editar producto</h2>
+            <div className="field-grid">
+              <div className="field field-full">
+                <label>Nombre</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Nombre"
+                />
+              </div>
+              <div className="field field-full">
+                <label>Descripción</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Descripción"
+                />
+              </div>
+              <div className="field">
+                <label>Categoría</label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                >
+                  {CATEGORIAS.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>Precio</label>
+                <input
+                  type="number"
+                  value={form.price}
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  placeholder="Precio"
+                />
+              </div>
+
+              {/* Imagen: vista previa + botón de cámara/galería + URL manual de respaldo */}
+              <div className="field field-full">
+                <label>Imagen</label>
+                {form.image_url && (
+                  <img src={form.image_url} alt="Vista previa" className="image-preview" />
+                )}
+                <label className="file-upload-btn">
+                  <Camera size={14} />
+                  {subiendoImagen ? "Subiendo..." : "Tomar foto o subir imagen"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleArchivoSeleccionado}
+                    disabled={subiendoImagen}
+                    hidden
+                  />
+                </label>
+                <input
+                  type="text"
+                  value={form.image_url}
+                  onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+                  placeholder="O pega una URL de imagen"
+                />
+              </div>
+            </div>
+
+            {editError && <p className="form-error">{editError}</p>}
+
+            <div className="panel-actions">
+              <button type="button" className="btn btn-secondary" onClick={handleCancelar} disabled={guardando}>
+                <X size={14} />
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={handleGuardar} disabled={guardando || subiendoImagen}>
+                <Check size={14} />
+                {guardando ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -265,6 +282,7 @@ export default function AdminMenu() {
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>("Todas");
   const [mostrarForm, setMostrarForm] = useState(false);
   const [formError, setFormError] = useState("");
+  const [confirmarDescartar, setConfirmarDescartar] = useState(false);
   const [confirmarCierre, setConfirmarCierre] = useState(false);
   const [subiendoImagenNueva, setSubiendoImagenNueva] = useState(false);
   const [nuevoProducto, setNuevoProducto] = useState({
@@ -292,6 +310,21 @@ export default function AdminMenu() {
   });
 
   const cafeteriaAbierta = storeState?.isOpen ?? true;
+
+  // Bloquear el scroll de fondo (incluyendo la rueda del mouse) mientras el pop-up está abierto
+  useEffect(() => {
+    if (mostrarForm) {
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+    } else {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    };
+  }, [mostrarForm]);
 
   // Conexión en tiempo real: si otro dispositivo abre/cierra la cafetería, o crea/edita/borra un producto, se refleja aquí solo
   useEffect(() => {
@@ -368,10 +401,26 @@ export default function AdminMenu() {
     }
   }
 
-  // Cierra el pop-up de "Nuevo producto" y limpia el error del formulario
-  function cerrarModal() {
+  // ¿Hay texto escrito en algún campo del formulario de nuevo producto?
+  function hayContenidoSinGuardar() {
+    return Object.values(nuevoProducto).some((valor) => valor.trim() !== "");
+  }
+
+  // Al intentar cerrar (clic afuera o botón Cancelar): si hay texto, pide confirmación primero
+  function solicitarCerrarModal() {
+    if (hayContenidoSinGuardar()) {
+      setConfirmarDescartar(true);
+      return;
+    }
+    cerrarModalDefinitivo();
+  }
+
+  // Cierra de verdad el pop-up y resetea todo
+  function cerrarModalDefinitivo() {
     setMostrarForm(false);
     setFormError("");
+    setConfirmarDescartar(false);
+    setNuevoProducto({ name: "", description: "", category: "", price: "", image_url: "" });
   }
 
   // Crear producto
@@ -379,9 +428,7 @@ export default function AdminMenu() {
     mutationFn: createProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      setNuevoProducto({ name: "", description: "", category: "", price: "", image_url: "" });
-      setFormError("");
-      setMostrarForm(false);
+      cerrarModalDefinitivo();
     },
     onError: () => {
       setFormError("Ocurrió un error al crear el producto. Intenta de nuevo.");
@@ -516,9 +563,24 @@ export default function AdminMenu() {
 
         {/* Pop-up de "Nuevo producto": fondo oscuro + formulario centrado */}
         {mostrarForm && (
-          <div className="modal-backdrop" onClick={cerrarModal}>
+          <div className="modal-backdrop" onClick={solicitarCerrarModal}>
             <form className="ticket-panel modal-panel" onSubmit={handleCrearProducto} onClick={(e) => e.stopPropagation()}>
               <h2>Nuevo producto</h2>
+
+              {confirmarDescartar && (
+                <div className="discard-warning">
+                  <span>Tienes cambios sin guardar. ¿Cerrar de todas formas?</span>
+                  <div className="discard-warning-actions">
+                    <button type="button" className="btn btn-danger" onClick={cerrarModalDefinitivo}>
+                      Sí, descartar
+                    </button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setConfirmarDescartar(false)}>
+                      Seguir editando
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="field-grid">
                 <div className="field field-full">
                   <label>Nombre</label>
@@ -588,7 +650,7 @@ export default function AdminMenu() {
               {formError && <p className="form-error">{formError}</p>}
 
               <div className="panel-actions">
-                <button type="button" className="btn btn-secondary" onClick={cerrarModal}>
+                <button type="button" className="btn btn-secondary" onClick={solicitarCerrarModal}>
                   <X size={14} />
                   Cancelar
                 </button>
