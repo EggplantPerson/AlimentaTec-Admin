@@ -14,6 +14,7 @@
   (Para correr el servidor local es necesario poner el link de PostgreSQL local en DIRECT_URL y DATABASE_URL)
   
   (Si no hay un bucket S3 disponible no se puede ejecutar el backend)
+  
 5. Verificar que PostgreSQL esté corriendo de manera local
 6. Ejecutar el comando "pnpm exec prisma migrate dev" para crear las tablas definidas dentro de schema.prisma en la base de datos
 7. Abrir una terminal y ejecutar el comando "pnpm server:dev" esto ejecuta el backend
