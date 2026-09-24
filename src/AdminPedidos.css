@@ -1,7 +1,7 @@
 /* Fuentes: Space Grotesk para títulos/UI, Inter para texto de cuerpo */
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
 
-/* Variables de color y layout general de la página */
+/* Variables de color y layout general de la página (usa su propio scope, no choca con AdminMenu) */
 .pedidos-admin {
   --bg: #F6F7F2;
   --surface: #FFFFFF;
@@ -193,7 +193,7 @@
   width: fit-content;
 }
 
-/* ---------- Lista de productos del pedido ---------- */
+/* ---------- Lista de productos del pedido + sus adicionales ---------- */
 
 .pedido-items {
   list-style: none;
@@ -201,21 +201,15 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
 }
 
-.pedido-items li {
-  font-size: 14px;
-  color: var(--ink);
+.pedido-item-block {
   padding-left: 14px;
   position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
 }
 
-.pedido-items li::before {
+.pedido-item-block::before {
   content: '';
   position: absolute;
   left: 0;
@@ -226,6 +220,15 @@
   background: var(--accent);
 }
 
+.pedido-item-main {
+  font-size: 14px;
+  color: var(--ink);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
 .pedido-item-qty {
   font-size: 12px;
   font-weight: 600;
@@ -234,6 +237,27 @@
   border-radius: 999px;
   padding: 1px 8px;
   flex-shrink: 0;
+}
+
+.pedido-item-addons {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+}
+
+.pedido-item-addons li {
+  font-size: 12px;
+  color: var(--ink-soft);
+  padding-left: 14px;
+  position: relative;
+}
+
+.pedido-item-addons li::before {
+  content: '*';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--accent-dark);
 }
 
 /* ---------- Nota del pedido ---------- */

@@ -20,6 +20,7 @@ model Product {
   category String
   image_url String
   price Int
+  addons String[] @default([])
   available Boolean @default(true)
 }
 
