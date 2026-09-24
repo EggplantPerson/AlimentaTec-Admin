@@ -34,6 +34,7 @@ interface ItemPedido {
 const ESTADOS = ["En espera", "En preparacion", "Completado", "Entregado"];
 const CANCELADO = "Cancelado";
 const OCULTOS_KEY = "pedidos_ocultos_manual";
+const PREFIJO_CANCELACION = "Motivo de cancelación: ";
 
 function estadoIndex(status: string) {
   const i = ESTADOS.indexOf(status);
@@ -131,6 +132,20 @@ function OrderCard({ order, nombresPorId, onAvanzar, onCancelar, onOcultar, onEl
   const finalizado = cancelado || esUltimoEstado;
   const items = resolverItems(order.products ?? [], nombresPorId);
 
+  // La nota puede ser del cliente o un motivo de cancelacion
+  const notaGuardada = order.notes ?? "";
+  const esMotivo = notaGuardada.startsWith(PREFIJO_CANCELACION);
+
+  // Muestra nota normal del cliente, motivo de cancelacion, 
+  // motivo de cancelacion anterior en un pedido que ya no esta cancelado
+  // si la nota no es del cliente, se oculta
+  const notaAMostrar = esMotivo
+    ? cancelado
+      ? notaGuardada.slice(PREFIJO_CANCELACION.length)
+      : ""
+    : notaGuardada;
+  const etiquetaNota = esMotivo ? "Motivo de cancelacion:" : "Nota:";
+
   // Avanzar al siguiente estado (En espera -> En preparación -> Completado -> Entregado)
   function avanzarEstado() {
     if (siguienteEstado) {
@@ -141,7 +156,7 @@ function OrderCard({ order, nombresPorId, onAvanzar, onCancelar, onOcultar, onEl
   // Cancelar: se vacía la nota original y se reemplaza únicamente por el motivo de cancelación
   function confirmarYCancelar() {
     const motivo = motivoCancelacion.trim();
-    const notasFinales = motivo || "Sin motivo especificado";
+    const notasFinales = PREFIJO_CANCELACION + (motivo || "Sin motivo especificado");
     onCancelar(order.uid, notasFinales);
     setConfirmarCancelar(false);
     setMotivoCancelacion("");
@@ -187,9 +202,9 @@ function OrderCard({ order, nombresPorId, onAvanzar, onCancelar, onOcultar, onEl
       </ul>
 
       {/* Nota del pedido (nota original del alumno, o motivo de cancelación agregado) */}
-      {order.notes && (
+      {notaAMostrar && (
         <p className="pedido-notas">
-          <strong>Nota:</strong> {order.notes}
+          <strong>{etiquetaNota}</strong> {notaAMostrar}
         </p>
       )}
 
