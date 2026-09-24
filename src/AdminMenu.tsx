@@ -53,9 +53,9 @@ function esHuerfano(valor: string, adicionales: Producto[]) {
 }
 
 interface AddonSelectorProps {
-  value: string[];                  // ids de adicionales que ya tiene este producto
+  value: string[];                   // ids de adicionales que ya tiene este producto
   onChange: (ids: string[]) => void; // devuelve la lista nueva completa de ids
-  adicionales: Producto[];          // todos los productos de categoría "Adicionales"
+  adicionales: Producto[];           // todos los productos de categoría "Adicionales"
 }
 
 // Selector de adicionales reutilizable (lo usan "Nuevo producto" y "Editar producto").
@@ -146,6 +146,12 @@ function ProductCard({ producto, adicionales, onGuardarEdicion, onEliminar, guar
     addons: producto.addons ?? [] as string[],
   });
 
+  // ¿Esta tarjeta es un adicional? Los adicionales no llevan foto ni descripción
+  const esAdicionalCard = producto.category === CATEGORIA_ADICIONALES;
+
+  // ¿El formulario de edición está editando un adicional? (cambia si el usuario cambia la categoría)
+  const formEsAdicional = form.category === CATEGORIA_ADICIONALES;
+
   // Bloquear el scroll de fondo (incluyendo la rueda del mouse) mientras el pop-up está abierto
   useEffect(() => {
     if (editando) {
@@ -194,11 +200,13 @@ function ProductCard({ producto, adicionales, onGuardarEdicion, onEliminar, guar
 
     onGuardarEdicion(producto.id, {
       name: form.name.trim(),
-      description: form.description.trim(),
+      // Un adicional se guarda sin descripción ni imagen (texto vacío, porque la BD no admite nulos)
+      description: formEsAdicional ? "" : form.description.trim(),
       category: form.category.trim(),
       price: precioNumero,
-      image_url: form.image_url.trim(),
-      addons: form.addons,
+      image_url: formEsAdicional ? "" : form.image_url.trim(),
+      // Un adicional no lleva adicionales
+      addons: formEsAdicional ? [] : form.addons,
     });
     setEditError("");
     setEditando(false);
@@ -221,11 +229,14 @@ function ProductCard({ producto, adicionales, onGuardarEdicion, onEliminar, guar
   return (
     <>
       <div className="ticket">
-        <img src={producto.image_url} alt={producto.name} className="ticket-image" />
+        {/* Los adicionales no muestran foto ni descripción */}
+        {!esAdicionalCard && (
+          <img src={producto.image_url} alt={producto.name} className="ticket-image" />
+        )}
         <div className="ticket-body">
           <span className="ticket-category">{producto.category}</span>
           <h3>{producto.name}</h3>
-          <p className="ticket-desc">{producto.description}</p>
+          {!esAdicionalCard && <p className="ticket-desc">{producto.description}</p>}
           <p className="ticket-price">${producto.price}</p>
 
           {/* Adicionales del producto: se muestra nombre y precio de cada uno */}
@@ -307,7 +318,7 @@ function ProductCard({ producto, adicionales, onGuardarEdicion, onEliminar, guar
       {editando && (
         <div className="modal-backdrop" onClick={handleCancelar}>
           <div className="ticket-panel modal-panel" onClick={(e) => e.stopPropagation()}>
-            <h2>{form.category === CATEGORIA_ADICIONALES ? "Editar adicional" : "Editar producto"}</h2>
+            <h2>{formEsAdicional ? "Editar adicional" : "Editar producto"}</h2>
             <div className="field-grid">
               <div className="field field-full">
                 <label>Nombre</label>
@@ -318,14 +329,19 @@ function ProductCard({ producto, adicionales, onGuardarEdicion, onEliminar, guar
                   placeholder="Nombre"
                 />
               </div>
-              <div className="field field-full">
-                <label>Descripción</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Descripción"
-                />
-              </div>
+
+              {/* Descripción: no aplica a adicionales */}
+              {!formEsAdicional && (
+                <div className="field field-full">
+                  <label>Descripción</label>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    placeholder="Descripción"
+                  />
+                </div>
+              )}
+
               <div className="field">
                 <label>Categoría</label>
                 <select
@@ -356,7 +372,7 @@ function ProductCard({ producto, adicionales, onGuardarEdicion, onEliminar, guar
               </div>
 
               {/* Adicionales: solo para productos normales (un adicional no lleva adicionales) */}
-              {form.category !== CATEGORIA_ADICIONALES && (
+              {!formEsAdicional && (
                 <AddonSelector
                   value={form.addons}
                   onChange={(addons) => setForm((prev) => ({ ...prev, addons }))}
@@ -364,30 +380,32 @@ function ProductCard({ producto, adicionales, onGuardarEdicion, onEliminar, guar
                 />
               )}
 
-              {/* Imagen: vista previa + botón de cámara/galería + URL manual de respaldo */}
-              <div className="field field-full">
-                <label>Imagen</label>
-                {form.image_url && (
-                  <img src={form.image_url} alt="Vista previa" className="image-preview" />
-                )}
-                <label className="file-upload-btn">
-                  <Camera size={14} />
-                  {subiendoImagen ? "Subiendo..." : "Tomar foto o subir imagen"}
+              {/* Imagen: no aplica a adicionales. Vista previa + botón de cámara/galería + URL manual */}
+              {!formEsAdicional && (
+                <div className="field field-full">
+                  <label>Imagen</label>
+                  {form.image_url && (
+                    <img src={form.image_url} alt="Vista previa" className="image-preview" />
+                  )}
+                  <label className="file-upload-btn">
+                    <Camera size={14} />
+                    {subiendoImagen ? "Subiendo..." : "Tomar foto o subir imagen"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleArchivoSeleccionado}
+                      disabled={subiendoImagen}
+                      hidden
+                    />
+                  </label>
                   <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleArchivoSeleccionado}
-                    disabled={subiendoImagen}
-                    hidden
+                    type="text"
+                    value={form.image_url}
+                    onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+                    placeholder="O pega una URL de imagen"
                   />
-                </label>
-                <input
-                  type="text"
-                  value={form.image_url}
-                  onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                  placeholder="O pega una URL de imagen"
-                />
-              </div>
+                </div>
+              )}
             </div>
 
             {editError && <p className="form-error">{editError}</p>}
@@ -660,14 +678,20 @@ export default function AdminMenu() {
       return;
     }
 
+    // Un adicional se guarda sin descripción ni imagen (texto vacío, porque la BD no admite nulos).
+    // Se fuerza aquí por si el usuario escribió algo antes de cambiar la categoría a "Adicionales".
+    const esAdicional = categoriaLimpia === CATEGORIA_ADICIONALES;
+
     setFormError("");
     crearMutation.mutate({
       name: nombreLimpio,
-      description: nuevoProducto.description.trim(),
+      description: esAdicional ? "" : nuevoProducto.description.trim(),
       category: categoriaLimpia,
       price: precioNumero,
-      image_url: nuevoProducto.image_url.trim() || "https://via.placeholder.com/220x150?text=Sin+imagen",
-      addons: nuevoProducto.addons,
+      image_url: esAdicional
+        ? ""
+        : nuevoProducto.image_url.trim() || "https://via.placeholder.com/220x150?text=Sin+imagen",
+      addons: esAdicional ? [] : nuevoProducto.addons,
     });
   }
 
@@ -756,14 +780,19 @@ export default function AdminMenu() {
                     onChange={(e) => setNuevoProducto({ ...nuevoProducto, name: e.target.value })}
                   />
                 </div>
-                <div className="field field-full">
-                  <label>Descripción</label>
-                  <textarea
-                    placeholder="Ej. Chilaquiles en salsa roja"
-                    value={nuevoProducto.description}
-                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, description: e.target.value })}
-                  />
-                </div>
+
+                {/* Descripción: no aplica a adicionales */}
+                {!creandoAdicional && (
+                  <div className="field field-full">
+                    <label>Descripción</label>
+                    <textarea
+                      placeholder="Ej. Chilaquiles en salsa roja"
+                      value={nuevoProducto.description}
+                      onChange={(e) => setNuevoProducto({ ...nuevoProducto, description: e.target.value })}
+                    />
+                  </div>
+                )}
+
                 <div className="field">
                   <label>Categoría</label>
                   <select
@@ -803,30 +832,32 @@ export default function AdminMenu() {
                   />
                 )}
 
-                {/* Imagen del producto nuevo */}
-                <div className="field field-full">
-                  <label>Imagen</label>
-                  {nuevoProducto.image_url && (
-                    <img src={nuevoProducto.image_url} alt="Vista previa" className="image-preview" />
-                  )}
-                  <label className="file-upload-btn">
-                    <Camera size={14} />
-                    {subiendoImagenNueva ? "Subiendo..." : "Tomar foto o subir imagen"}
+                {/* Imagen del producto nuevo: no aplica a adicionales */}
+                {!creandoAdicional && (
+                  <div className="field field-full">
+                    <label>Imagen</label>
+                    {nuevoProducto.image_url && (
+                      <img src={nuevoProducto.image_url} alt="Vista previa" className="image-preview" />
+                    )}
+                    <label className="file-upload-btn">
+                      <Camera size={14} />
+                      {subiendoImagenNueva ? "Subiendo..." : "Tomar foto o subir imagen"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleArchivoNuevoProducto}
+                        disabled={subiendoImagenNueva}
+                        hidden
+                      />
+                    </label>
                     <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleArchivoNuevoProducto}
-                      disabled={subiendoImagenNueva}
-                      hidden
+                      type="text"
+                      value={nuevoProducto.image_url}
+                      onChange={(e) => setNuevoProducto({ ...nuevoProducto, image_url: e.target.value })}
+                      placeholder="O pega una URL de imagen"
                     />
-                  </label>
-                  <input
-                    type="text"
-                    value={nuevoProducto.image_url}
-                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, image_url: e.target.value })}
-                    placeholder="O pega una URL de imagen"
-                  />
-                </div>
+                  </div>
+                )}
               </div>
 
               {formError && <p className="form-error">{formError}</p>}
