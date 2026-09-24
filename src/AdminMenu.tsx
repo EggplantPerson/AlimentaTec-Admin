@@ -10,6 +10,10 @@ import "./AdminMenu.css";
 const CATEGORIAS = ["Comidas", "Bebidas", "Snacks"] as const;
 type Categoria = typeof CATEGORIAS[number];
 
+// Valor especial de la opción "+ Crear nuevo adicional..." del dropdown.
+// No es un adicional real: solo sirve para cambiar el selector a modo "escribir".
+const NUEVO_ADICIONAL = "__nuevo__";
+
 interface Producto {
   id: number;
   name: string;
@@ -21,8 +25,124 @@ interface Producto {
   addons: string[];
 }
 
+// Quita acentos y mayúsculas para comparar textos ("café" = "cafe", "Leche" = "leche").
+// Está a nivel de módulo para que lo usen tanto AdminMenu como AddonSelector.
+const normalizar = (texto: string) =>
+  texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+interface AddonSelectorProps {
+  value: string[];                       
+  onChange: (addons: string[]) => void;  
+  catalogo: string[];                    
+}
+
+// Selector de adicionales reutilizable .
+// - Opción "+ Crear nuevo adicional..." para escribir uno que aún no existe.
+function AddonSelector({ value, onChange, catalogo }: AddonSelectorProps) {
+  const [creando, setCreando] = useState(false);
+  const [texto, setTexto] = useState("");
+
+  // En el dropdown solo mostramos los que este producto todavía no tiene
+  const disponibles = catalogo.filter(
+    (a) => !value.some((v) => normalizar(v) === normalizar(a))
+  );
+
+  // Agrega un adicional a la lista del producto (sin duplicados, sin espacios de más)
+  function agregar(addon: string) {
+    const limpio = addon.trim();
+    if (!limpio) return;
+
+    // Si ya existe en el catálogo (aunque esté escrito con otras mayúsculas o sin acentos),
+    const canonico = catalogo.find((a) => normalizar(a) === normalizar(limpio)) ?? limpio;
+
+    if (!value.some((v) => normalizar(v) === normalizar(canonico))) {
+      onChange([...value, canonico]);
+    }
+    setTexto("");
+    setCreando(false);
+  }
+
+  // Quita un adicional de la lista por su posición
+  function quitar(index: number) {
+    onChange(value.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div className="field field-full">
+      <label>Adicionales (opcional)</label>
+
+      {creando ? (
+        // Modo "crear nuevo": escribe el nombre y presiona Enter o "Agregar"
+        <div className="addon-input-row">
+          <input
+            type="text"
+            autoFocus
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault(); // evita que Enter envíe el formulario de "Nuevo producto"
+                agregar(texto);
+              }
+            }}
+            placeholder="Ej. Leche de almendras"
+          />
+          <button type="button" className="btn btn-secondary" onClick={() => agregar(texto)}>
+            <Plus size={14} />
+            Agregar
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              setCreando(false);
+              setTexto("");
+            }}
+            aria-label="Cancelar"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ) : (
+        // Modo normal: dropdown con el catálogo. value="" para que siempre vuelva a "Selecciona..."
+        <select
+          value=""
+          onChange={(e) => {
+            if (e.target.value === NUEVO_ADICIONAL) setCreando(true);
+            else if (e.target.value) agregar(e.target.value);
+          }}
+        >
+          <option value="">Selecciona un adicional...</option>
+          {disponibles.map((a) => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+          <option value={NUEVO_ADICIONAL}>+ Crear nuevo adicional...</option>
+        </select>
+      )}
+
+      {/* Adicionales ya elegidos para este producto, con botón para quitarlos */}
+      {value.length > 0 && (
+        <div className="addon-tags">
+          {value.map((addon, i) => (
+            <span key={addon} className="addon-tag addon-tag-removable">
+              {addon}
+              <button type="button" onClick={() => quitar(i)} aria-label={`Quitar ${addon}`}>
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ProductCardProps {
   producto: Producto;
+  addonsCatalogo: string[]; // catálogo de adicionales para el dropdown del pop-up de edición
   onGuardarEdicion: (id: number, data: Partial<{ name: string; description: string; category: string; price: number; image_url: string; available: boolean; addons: string[] }>) => void;
   onEliminar: (id: number) => void;
   guardando: boolean;
@@ -30,12 +150,11 @@ interface ProductCardProps {
 }
 
 // Tarjeta individual de producto: muestra vista normal; al editar, abre un pop-up igual al de "Nuevo producto"
-function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, eliminando }: ProductCardProps) {
+function ProductCard({ producto, addonsCatalogo, onGuardarEdicion, onEliminar, guardando, eliminando }: ProductCardProps) {
   const [editando, setEditando] = useState(false);
   const [editError, setEditError] = useState("");
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
   const [subiendoImagen, setSubiendoImagen] = useState(false);
-  const [addonInput, setAddonInput] = useState("");
 
   // Copia local editable del producto (no se toca el original hasta guardar)
   const [form, setForm] = useState({
@@ -65,23 +184,6 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
   // Cambiar disponibilidad (Disponible / Agotado) — se guarda de inmediato, sin pasar por "Guardar"
   function handleCambiarDisponibilidad(nuevoValor: boolean) {
     onGuardarEdicion(producto.id, { available: nuevoValor });
-  }
-
-  // Adicionales: agregar uno nuevo a la lista (sin duplicados, sin espacios de más)
-  function agregarAddon() {
-    const valor = addonInput.trim();
-    if (!valor) return;
-    if (form.addons.some((a) => a.toLowerCase() === valor.toLowerCase())) {
-      setAddonInput("");
-      return;
-    }
-    setForm((prev) => ({ ...prev, addons: [...prev.addons, valor] }));
-    setAddonInput("");
-  }
-
-  // Adicionales: quitar uno de la lista por su posición
-  function quitarAddon(index: number) {
-    setForm((prev) => ({ ...prev, addons: prev.addons.filter((_, i) => i !== index) }));
   }
 
   // Subida de imagen: toma el archivo elegido (cámara o galería), lo sube al bucket
@@ -132,7 +234,6 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
       image_url: producto.image_url,
       addons: producto.addons ?? [],
     });
-    setAddonInput("");
     setEditError("");
     setEditando(false);
   }
@@ -261,40 +362,12 @@ function ProductCard({ producto, onGuardarEdicion, onEliminar, guardando, elimin
                 />
               </div>
 
-              {/* Adicionales: escribe uno y presiona Enter o "Agregar" */}
-              <div className="field field-full">
-                <label>Adicionales (opcional)</label>
-                <div className="addon-input-row">
-                  <input
-                    type="text"
-                    value={addonInput}
-                    onChange={(e) => setAddonInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        agregarAddon();
-                      }
-                    }}
-                    placeholder="Ej. Proteína, Leche de almendras..."
-                  />
-                  <button type="button" className="btn btn-secondary" onClick={agregarAddon}>
-                    <Plus size={14} />
-                    Agregar
-                  </button>
-                </div>
-                {form.addons.length > 0 && (
-                  <div className="addon-tags">
-                    {form.addons.map((addon, i) => (
-                      <span key={i} className="addon-tag addon-tag-removable">
-                        {addon}
-                        <button type="button" onClick={() => quitarAddon(i)} aria-label={`Quitar ${addon}`}>
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Adicionales: dropdown con el catálogo o crear uno nuevo */}
+              <AddonSelector
+                value={form.addons}
+                onChange={(addons) => setForm((prev) => ({ ...prev, addons }))}
+                catalogo={addonsCatalogo}
+              />
 
               {/* Imagen: vista previa + botón de cámara/galería + URL manual de respaldo */}
               <div className="field field-full">
@@ -352,7 +425,6 @@ export default function AdminMenu() {
   const [confirmarDescartar, setConfirmarDescartar] = useState(false);
   const [confirmarCierre, setConfirmarCierre] = useState(false);
   const [subiendoImagenNueva, setSubiendoImagenNueva] = useState(false);
-  const [addonInputNuevo, setAddonInputNuevo] = useState("");
   const [nuevoProducto, setNuevoProducto] = useState({
     name: "",
     description: "",
@@ -379,6 +451,22 @@ export default function AdminMenu() {
   });
 
   const cafeteriaAbierta = storeState?.isOpen ?? true;
+
+  // Catálogo de adicionales: junta los addons de TODOS los productos, sin duplicados.
+  // Así no hace falta tocar el backend: el dropdown se llena con lo que ya existe.
+  // Se recalcula solo cuando cambian los productos (incluso por los eventos de socket).
+  const addonsCatalogo = useMemo(() => {
+    // Clave normalizada -> primer texto encontrado (así se conserva la ortografía original)
+    const mapa = new Map<string, string>();
+    productos.forEach((p) =>
+      (p.addons ?? []).forEach((a) => {
+        const clave = normalizar(a);
+        if (clave && !mapa.has(clave)) mapa.set(clave, a.trim());
+      })
+    );
+    // Orden alfabético para que el dropdown sea predecible
+    return [...mapa.values()].sort((a, b) => normalizar(a).localeCompare(normalizar(b)));
+  }, [productos]);
 
   // Bloquear el scroll de fondo (incluyendo la rueda del mouse) mientras el pop-up está abierto
   useEffect(() => {
@@ -470,23 +558,6 @@ export default function AdminMenu() {
     }
   }
 
-  // Adicionales (producto nuevo): agregar uno a la lista, sin duplicados
-  function agregarAddonNuevo() {
-    const valor = addonInputNuevo.trim();
-    if (!valor) return;
-    if (nuevoProducto.addons.some((a) => a.toLowerCase() === valor.toLowerCase())) {
-      setAddonInputNuevo("");
-      return;
-    }
-    setNuevoProducto((prev) => ({ ...prev, addons: [...prev.addons, valor] }));
-    setAddonInputNuevo("");
-  }
-
-  // Adicionales (producto nuevo): quitar uno por posición
-  function quitarAddonNuevo(index: number) {
-    setNuevoProducto((prev) => ({ ...prev, addons: prev.addons.filter((_, i) => i !== index) }));
-  }
-
   // ¿Hay texto escrito en algún campo del formulario de nuevo producto?
   function hayContenidoSinGuardar() {
     const { addons, ...resto } = nuevoProducto;
@@ -507,7 +578,6 @@ export default function AdminMenu() {
     setMostrarForm(false);
     setFormError("");
     setConfirmarDescartar(false);
-    setAddonInputNuevo("");
     setNuevoProducto({ name: "", description: "", category: "", price: "", image_url: "", addons: [] });
   }
 
@@ -553,13 +623,6 @@ export default function AdminMenu() {
   function handleEliminar(id: number) {
     eliminarMutation.mutate(id);
   }
-
-  // Quita acentos para que la búsqueda no distinga "café" de "cafe"
-  const normalizar = (texto: string) =>
-    texto
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
 
   // Filtrado + orden alfabético: se ordena por nombre para que la posición de cada
   // tarjeta sea siempre la misma, sin importar si cambia su disponibilidad
@@ -710,40 +773,12 @@ export default function AdminMenu() {
                   />
                 </div>
 
-                {/* Adicionales: escribe uno y presiona Enter o "Agregar" */}
-                <div className="field field-full">
-                  <label>Adicionales (opcional)</label>
-                  <div className="addon-input-row">
-                    <input
-                      type="text"
-                      value={addonInputNuevo}
-                      onChange={(e) => setAddonInputNuevo(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          agregarAddonNuevo();
-                        }
-                      }}
-                      placeholder="Ej. Proteína, Leche de almendras..."
-                    />
-                    <button type="button" className="btn btn-secondary" onClick={agregarAddonNuevo}>
-                      <Plus size={14} />
-                      Agregar
-                    </button>
-                  </div>
-                  {nuevoProducto.addons.length > 0 && (
-                    <div className="addon-tags">
-                      {nuevoProducto.addons.map((addon, i) => (
-                        <span key={i} className="addon-tag addon-tag-removable">
-                          {addon}
-                          <button type="button" onClick={() => quitarAddonNuevo(i)} aria-label={`Quitar ${addon}`}>
-                            <X size={12} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {/* Adicionales: dropdown con el catálogo o crear uno nuevo */}
+                <AddonSelector
+                  value={nuevoProducto.addons}
+                  onChange={(addons) => setNuevoProducto((prev) => ({ ...prev, addons }))}
+                  catalogo={addonsCatalogo}
+                />
 
                 {/* Imagen del producto nuevo */}
                 <div className="field field-full">
@@ -837,6 +872,7 @@ export default function AdminMenu() {
               <ProductCard
                 key={prod.id}
                 producto={prod}
+                addonsCatalogo={addonsCatalogo}
                 onGuardarEdicion={handleGuardarEdicion}
                 onEliminar={handleEliminar}
                 guardando={editarMutation.isPending && editarMutation.variables?.id === prod.id}
