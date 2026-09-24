@@ -22,6 +22,13 @@ interface Producto {
   name: string;
 }
 
+// Un producto del pedido, ya con sus adicionales agrupados
+interface ItemPedido {
+  nombre: string;
+  addons: string[];
+  cantidad: number;
+}
+
 // Lista de estados en orden. El pedido solo avanza, nunca retrocede.
 // "Cancelado" es un estado aparte: no forma parte de este flujo lineal.
 const ESTADOS = ["En espera", "En preparacion", "Completado", "Entregado"];
@@ -33,7 +40,7 @@ function estadoIndex(status: string) {
   return i === -1 ? 0 : i;
 }
 
-// Mostrar la hora del pedido en formato legible 
+// Mostrar la hora del pedido en formato legible (ej. "10:45 a.m.")
 function formatearHora(orderTime: string) {
   try {
     return new Date(orderTime).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
@@ -42,7 +49,7 @@ function formatearHora(orderTime: string) {
   }
 }
 
-// Ocultar manualmente: guarda/lee la lista de pedidos ocultos en el navegador 
+// Ocultar manualmente: guarda/lee la lista de pedidos ocultos en el navegador (no en la DB)
 function cargarOcultosManual(): Set<string> {
   try {
     const guardado = localStorage.getItem(OCULTOS_KEY);
@@ -60,16 +67,43 @@ function guardarOcultosManual(set: Set<string>) {
   }
 }
 
-// Convertir ids de producto a nombres: agrupa repetidos y los convierte a { nombre, cantidad }
-function resolverItems(productIds: string[], nombresPorId: Record<number, string>) {
-  const conteo = new Map<string, number>();
-  productIds.forEach((pid) => conteo.set(pid, (conteo.get(pid) ?? 0) + 1));
+// Convierte el arreglo plano de products en una lista de items con sus adicionales.
+// Un entry es "producto" si es un id numérico; si no, es un adicional del producto anterior.
+function resolverItems(productIds: string[], nombresPorId: Record<number, string>): ItemPedido[] {
+  type ItemBase = { nombre: string; addons: string[] };
+  const items: ItemBase[] = [];
 
-  return Array.from(conteo.entries()).map(([pid, cantidad]) => ({
-    id: pid,
-    nombre: nombresPorId[Number(pid)] ?? `Producto #${pid}`,
-    cantidad,
-  }));
+  for (const raw of productIds) {
+    const num = Number(raw);
+    const esProductoValido = raw.trim() !== "" && !isNaN(num);
+
+    if (esProductoValido) {
+      items.push({ nombre: nombresPorId[num] ?? `Producto #${raw}`, addons: [] });
+    } else {
+      const ultimo = items[items.length - 1];
+      if (ultimo) {
+        // Es un adicional: se asocia al último producto agregado
+        ultimo.addons.push(raw);
+      } else {
+        // Caso raro: un adicional sin producto base antes que él
+        items.push({ nombre: `Adicional suelto: ${raw}`, addons: [] });
+      }
+    }
+  }
+
+  // Agrupa solo si son idénticos (mismo nombre Y mismos adicionales) para mostrar "×2"
+  const agrupados = new Map<string, ItemPedido>();
+  items.forEach((item) => {
+    const clave = `${item.nombre}|${item.addons.slice().sort().join(",")}`;
+    const existente = agrupados.get(clave);
+    if (existente) {
+      existente.cantidad += 1;
+    } else {
+      agrupados.set(clave, { ...item, cantidad: 1 });
+    }
+  });
+
+  return Array.from(agrupados.values());
 }
 
 interface OrderCardProps {
@@ -104,7 +138,7 @@ function OrderCard({ order, nombresPorId, onAvanzar, onCancelar, onOcultar, onEl
     }
   }
 
- // Cancelar: se vacía la nota original y se reemplaza únicamente por el motivo de cancelación
+  // Cancelar: se vacía la nota original y se reemplaza únicamente por el motivo de cancelación
   function confirmarYCancelar() {
     const motivo = motivoCancelacion.trim();
     const notasFinales = motivo || "Sin motivo especificado";
@@ -133,12 +167,21 @@ function OrderCard({ order, nombresPorId, onAvanzar, onCancelar, onOcultar, onEl
         {formatearHora(order.orderTime)}
       </span>
 
-      {/* Lista de productos del pedido, con cantidad si se repite */}
+      {/* Lista de productos del pedido, con sus adicionales indentados debajo */}
       <ul className="pedido-items">
-        {items.map((item) => (
-          <li key={item.id}>
-            <span>{item.nombre}</span>
-            {item.cantidad > 1 && <span className="pedido-item-qty">×{item.cantidad}</span>}
+        {items.map((item, i) => (
+          <li key={i} className="pedido-item-block">
+            <div className="pedido-item-main">
+              <span>{item.nombre}</span>
+              {item.cantidad > 1 && <span className="pedido-item-qty">×{item.cantidad}</span>}
+            </div>
+            {item.addons.length > 0 && (
+              <ul className="pedido-item-addons">
+                {item.addons.map((addon, j) => (
+                  <li key={j}>{addon}</li>
+                ))}
+              </ul>
+            )}
           </li>
         ))}
       </ul>
@@ -255,7 +298,7 @@ export default function AdminPedidos() {
     queryFn: getOrders,
   });
 
-  // Obtención de datos: catálogo de productos 
+  // Obtención de datos: catálogo de productos (para mostrar nombres en vez de ids)
   const { data: productos = [] } = useQuery<Producto[]>({
     queryKey: ["products"],
     queryFn: getProducts,
@@ -290,7 +333,8 @@ export default function AdminPedidos() {
   const actualizarMutation = useMutation({
     mutationFn: ({ uid, status, notes }: { uid: string; status: string; notes?: string }) =>
       updateOrder(uid, notes !== undefined ? { status, notes } : { status }),
-    // El evento "order:updated" del socket actualiza la caché al confirmar el backend
+    // El evento "order:updated" del socket actualiza la caché al confirmar el backend,
+    // y ese mismo evento es el que la app del cliente debe escuchar para verlo reflejado.
   });
 
   function handleAvanzar(uid: string, siguienteEstado: string) {

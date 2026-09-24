@@ -585,3 +585,51 @@ button:focus-visible {
     font-size: 24px;
   }
 }
+
+/* ---------- Adicionales de producto (tags/chips) ---------- */
+
+.addon-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.addon-input-row input {
+  flex: 1;
+}
+
+.addon-input-row .btn {
+  flex-shrink: 0;
+}
+
+.addon-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.addon-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent-dark);
+}
+
+.addon-tag-removable button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 2px;
+  color: var(--accent-dark);
+  cursor: pointer;
+  display: flex;
+}
+
+.addon-tag-removable button:hover {
+  color: var(--ink);
+}
