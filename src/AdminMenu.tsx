@@ -7,12 +7,11 @@ import { getStoreState, updateStoreState } from "./services/storeState.service";
 import { uploadImage } from "./services/upload.service";
 import "./AdminMenu.css";
 
-const CATEGORIAS = ["Comidas", "Bebidas", "Snacks"] as const;
+// Nombre de la categoría especial: los productos de esta categoría son ADICIONALES.
+// Solo el admin los ve como tarjetas; la app de clientes debe ocultarlos del menú.
+const CATEGORIA_ADICIONALES = "Adicionales";
+const CATEGORIAS = ["Comidas", "Bebidas", "Snacks", CATEGORIA_ADICIONALES] as const;
 type Categoria = typeof CATEGORIAS[number];
-
-// Valor especial de la opción "+ Crear nuevo adicional..." del dropdown.
-// No es un adicional real: solo sirve para cambiar el selector a modo "escribir".
-const NUEVO_ADICIONAL = "__nuevo__";
 
 interface Producto {
   id: number;
@@ -22,47 +21,54 @@ interface Producto {
   price: number;
   image_url: string;
   available: boolean;
+  // Ids (como texto) de los productos de categoría "Adicionales", ej. ["12", "15"]
   addons: string[];
 }
 
-// Quita acentos y mayúsculas para comparar textos ("café" = "cafe", "Leche" = "leche").
-// Está a nivel de módulo para que lo usen tanto AdminMenu como AddonSelector.
+// Quita acentos y mayúsculas para comparar textos ("café" = "cafe", "Leche" = "leche")
 const normalizar = (texto: string) =>
   texto
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
-interface AddonSelectorProps {
-  value: string[];                       
-  onChange: (addons: string[]) => void;  
-  catalogo: string[];                    
+// Busca el adicional (producto de categoría "Adicionales") que corresponde a un id guardado
+function buscarAddon(valor: string, adicionales: Producto[]) {
+  return adicionales.find((a) => String(a.id) === valor);
 }
 
-// Selector de adicionales reutilizable .
-// - Opción "+ Crear nuevo adicional..." para escribir uno que aún no existe.
-function AddonSelector({ value, onChange, catalogo }: AddonSelectorProps) {
-  const [creando, setCreando] = useState(false);
-  const [texto, setTexto] = useState("");
+// Texto que se muestra en pantalla para un valor guardado en producto.addons:
+// - Si es el id de un adicional existente: "Nombre (+$precio)"
+// - Si es un número que ya no corresponde a ningún adicional: fue eliminado
+// - Si es texto normal: es un adicional viejo (de antes de esta categoría), se muestra tal cual
+function etiquetaAddon(valor: string, adicionales: Producto[]) {
+  const addon = buscarAddon(valor, adicionales);
+  if (addon) return `${addon.name} (+$${addon.price})`;
+  return /^\d+$/.test(valor) ? "Adicional eliminado" : valor;
+}
 
+// ¿Es un id que apunta a un adicional que ya no existe? (para pintarlo en rojo)
+function esHuerfano(valor: string, adicionales: Producto[]) {
+  return /^\d+$/.test(valor) && !buscarAddon(valor, adicionales);
+}
+
+interface AddonSelectorProps {
+  value: string[];                  // ids de adicionales que ya tiene este producto
+  onChange: (ids: string[]) => void; // devuelve la lista nueva completa de ids
+  adicionales: Producto[];          // todos los productos de categoría "Adicionales"
+}
+
+// Selector de adicionales reutilizable (lo usan "Nuevo producto" y "Editar producto").
+// Solo permite elegir adicionales que ya existen: para crear uno nuevo se usa la
+// categoría "Adicionales" (así cada adicional tiene un único precio).
+function AddonSelector({ value, onChange, adicionales }: AddonSelectorProps) {
   // En el dropdown solo mostramos los que este producto todavía no tiene
-  const disponibles = catalogo.filter(
-    (a) => !value.some((v) => normalizar(v) === normalizar(a))
-  );
+  const disponibles = adicionales.filter((a) => !value.includes(String(a.id)));
 
-  // Agrega un adicional a la lista del producto (sin duplicados, sin espacios de más)
-  function agregar(addon: string) {
-    const limpio = addon.trim();
-    if (!limpio) return;
-
-    // Si ya existe en el catálogo (aunque esté escrito con otras mayúsculas o sin acentos),
-    const canonico = catalogo.find((a) => normalizar(a) === normalizar(limpio)) ?? limpio;
-
-    if (!value.some((v) => normalizar(v) === normalizar(canonico))) {
-      onChange([...value, canonico]);
-    }
-    setTexto("");
-    setCreando(false);
+  // Agrega el id elegido a la lista del producto
+  function agregar(id: string) {
+    if (!id || value.includes(id)) return;
+    onChange([...value, id]);
   }
 
   // Quita un adicional de la lista por su posición
@@ -74,62 +80,36 @@ function AddonSelector({ value, onChange, catalogo }: AddonSelectorProps) {
     <div className="field field-full">
       <label>Adicionales (opcional)</label>
 
-      {creando ? (
-        // Modo "crear nuevo": escribe el nombre y presiona Enter o "Agregar"
-        <div className="addon-input-row">
-          <input
-            type="text"
-            autoFocus
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault(); // evita que Enter envíe el formulario de "Nuevo producto"
-                agregar(texto);
-              }
-            }}
-            placeholder="Ej. Leche de almendras"
-          />
-          <button type="button" className="btn btn-secondary" onClick={() => agregar(texto)}>
-            <Plus size={14} />
-            Agregar
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => {
-              setCreando(false);
-              setTexto("");
-            }}
-            aria-label="Cancelar"
-          >
-            <X size={14} />
-          </button>
-        </div>
+      {adicionales.length === 0 ? (
+        // Todavía no se ha creado ningún adicional
+        <p className="addon-empty-hint">
+          Aún no hay adicionales. Crea uno en la categoría "{CATEGORIA_ADICIONALES}".
+        </p>
       ) : (
-        // Modo normal: dropdown con el catálogo. value="" para que siempre vuelva a "Selecciona..."
-        <select
-          value=""
-          onChange={(e) => {
-            if (e.target.value === NUEVO_ADICIONAL) setCreando(true);
-            else if (e.target.value) agregar(e.target.value);
-          }}
-        >
-          <option value="">Selecciona un adicional...</option>
+        // value="" para que después de elegir siempre vuelva a "Selecciona..."
+        <select value="" onChange={(e) => agregar(e.target.value)}>
+          <option value="">
+            {disponibles.length > 0 ? "Selecciona un adicional..." : "Ya agregaste todos los adicionales"}
+          </option>
           {disponibles.map((a) => (
-            <option key={a} value={a}>{a}</option>
+            <option key={a.id} value={String(a.id)}>
+              {etiquetaAddon(String(a.id), adicionales)}
+              {a.available ? "" : " — agotado"}
+            </option>
           ))}
-          <option value={NUEVO_ADICIONAL}>+ Crear nuevo adicional...</option>
         </select>
       )}
 
-      {/* Adicionales ya elegidos para este producto, con botón para quitarlos */}
+      {/* Adicionales elegidos para este producto, con botón para quitarlos */}
       {value.length > 0 && (
         <div className="addon-tags">
-          {value.map((addon, i) => (
-            <span key={addon} className="addon-tag addon-tag-removable">
-              {addon}
-              <button type="button" onClick={() => quitar(i)} aria-label={`Quitar ${addon}`}>
+          {value.map((valor, i) => (
+            <span
+              key={valor}
+              className={`addon-tag addon-tag-removable ${esHuerfano(valor, adicionales) ? "addon-tag-missing" : ""}`}
+            >
+              {etiquetaAddon(valor, adicionales)}
+              <button type="button" onClick={() => quitar(i)} aria-label={`Quitar ${etiquetaAddon(valor, adicionales)}`}>
                 <X size={12} />
               </button>
             </span>
@@ -142,7 +122,7 @@ function AddonSelector({ value, onChange, catalogo }: AddonSelectorProps) {
 
 interface ProductCardProps {
   producto: Producto;
-  addonsCatalogo: string[]; // catálogo de adicionales para el dropdown del pop-up de edición
+  adicionales: Producto[]; // productos de categoría "Adicionales" (para mostrar y elegir)
   onGuardarEdicion: (id: number, data: Partial<{ name: string; description: string; category: string; price: number; image_url: string; available: boolean; addons: string[] }>) => void;
   onEliminar: (id: number) => void;
   guardando: boolean;
@@ -150,7 +130,7 @@ interface ProductCardProps {
 }
 
 // Tarjeta individual de producto: muestra vista normal; al editar, abre un pop-up igual al de "Nuevo producto"
-function ProductCard({ producto, addonsCatalogo, onGuardarEdicion, onEliminar, guardando, eliminando }: ProductCardProps) {
+function ProductCard({ producto, adicionales, onGuardarEdicion, onEliminar, guardando, eliminando }: ProductCardProps) {
   const [editando, setEditando] = useState(false);
   const [editError, setEditError] = useState("");
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
@@ -248,11 +228,16 @@ function ProductCard({ producto, addonsCatalogo, onGuardarEdicion, onEliminar, g
           <p className="ticket-desc">{producto.description}</p>
           <p className="ticket-price">${producto.price}</p>
 
-          {/* Adicionales del producto, si tiene */}
+          {/* Adicionales del producto: se muestra nombre y precio de cada uno */}
           {producto.addons && producto.addons.length > 0 && (
             <div className="addon-tags">
-              {producto.addons.map((addon, i) => (
-                <span key={i} className="addon-tag">{addon}</span>
+              {producto.addons.map((valor) => (
+                <span
+                  key={valor}
+                  className={`addon-tag ${esHuerfano(valor, adicionales) ? "addon-tag-missing" : ""}`}
+                >
+                  {etiquetaAddon(valor, adicionales)}
+                </span>
               ))}
             </div>
           )}
@@ -322,7 +307,7 @@ function ProductCard({ producto, addonsCatalogo, onGuardarEdicion, onEliminar, g
       {editando && (
         <div className="modal-backdrop" onClick={handleCancelar}>
           <div className="ticket-panel modal-panel" onClick={(e) => e.stopPropagation()}>
-            <h2>Editar producto</h2>
+            <h2>{form.category === CATEGORIA_ADICIONALES ? "Editar adicional" : "Editar producto"}</h2>
             <div className="field-grid">
               <div className="field field-full">
                 <label>Nombre</label>
@@ -345,7 +330,15 @@ function ProductCard({ producto, addonsCatalogo, onGuardarEdicion, onEliminar, g
                 <label>Categoría</label>
                 <select
                   value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  onChange={(e) => {
+                    const categoria = e.target.value;
+                    // Un adicional no puede tener adicionales: si pasa a esa categoría se limpia la lista
+                    setForm({
+                      ...form,
+                      category: categoria,
+                      addons: categoria === CATEGORIA_ADICIONALES ? [] : form.addons,
+                    });
+                  }}
                 >
                   {CATEGORIAS.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -362,12 +355,14 @@ function ProductCard({ producto, addonsCatalogo, onGuardarEdicion, onEliminar, g
                 />
               </div>
 
-              {/* Adicionales: dropdown con el catálogo o crear uno nuevo */}
-              <AddonSelector
-                value={form.addons}
-                onChange={(addons) => setForm((prev) => ({ ...prev, addons }))}
-                catalogo={addonsCatalogo}
-              />
+              {/* Adicionales: solo para productos normales (un adicional no lleva adicionales) */}
+              {form.category !== CATEGORIA_ADICIONALES && (
+                <AddonSelector
+                  value={form.addons}
+                  onChange={(addons) => setForm((prev) => ({ ...prev, addons }))}
+                  adicionales={adicionales}
+                />
+              )}
 
               {/* Imagen: vista previa + botón de cámara/galería + URL manual de respaldo */}
               <div className="field field-full">
@@ -434,7 +429,7 @@ export default function AdminMenu() {
     addons: [] as string[],
   });
 
-  // Obtención de datos: lista de productos desde el backend
+  // Obtención de datos: lista de productos desde el backend (incluye los adicionales)
   const {
     data: productos = [],
     isLoading,
@@ -452,21 +447,15 @@ export default function AdminMenu() {
 
   const cafeteriaAbierta = storeState?.isOpen ?? true;
 
-  // Catálogo de adicionales: junta los addons de TODOS los productos, sin duplicados.
-  // Así no hace falta tocar el backend: el dropdown se llena con lo que ya existe.
+  // Adicionales: los productos de categoría "Adicionales", ordenados por nombre.
   // Se recalcula solo cuando cambian los productos (incluso por los eventos de socket).
-  const addonsCatalogo = useMemo(() => {
-    // Clave normalizada -> primer texto encontrado (así se conserva la ortografía original)
-    const mapa = new Map<string, string>();
-    productos.forEach((p) =>
-      (p.addons ?? []).forEach((a) => {
-        const clave = normalizar(a);
-        if (clave && !mapa.has(clave)) mapa.set(clave, a.trim());
-      })
-    );
-    // Orden alfabético para que el dropdown sea predecible
-    return [...mapa.values()].sort((a, b) => normalizar(a).localeCompare(normalizar(b)));
-  }, [productos]);
+  const adicionales = useMemo(
+    () =>
+      productos
+        .filter((p) => p.category === CATEGORIA_ADICIONALES)
+        .sort((a, b) => normalizar(a.name).localeCompare(normalizar(b.name))),
+    [productos]
+  );
 
   // Bloquear el scroll de fondo (incluyendo la rueda del mouse) mientras el pop-up está abierto
   useEffect(() => {
@@ -581,7 +570,7 @@ export default function AdminMenu() {
     setNuevoProducto({ name: "", description: "", category: "", price: "", image_url: "", addons: [] });
   }
 
-  // Crear producto
+  // Crear producto (o adicional, si la categoría elegida es "Adicionales")
   const crearMutation = useMutation({
     mutationFn: createProduct,
     onSuccess: () => {
@@ -620,18 +609,39 @@ export default function AdminMenu() {
     editarMutation.mutate({ id, data });
   }
 
-  function handleEliminar(id: number) {
+  // Eliminar: si lo que se borra es un adicional, primero se quita su id de todos los
+  // productos que lo usan, para no dejar referencias a un adicional que ya no existe
+  async function handleEliminar(id: number) {
+    const objetivo = productos.find((p) => p.id === id);
+
+    if (objetivo?.category === CATEGORIA_ADICIONALES) {
+      const idTexto = String(id);
+      const afectados = productos.filter((p) => (p.addons ?? []).includes(idTexto));
+      try {
+        await Promise.all(
+          afectados.map((p) => updateProduct(p.id, { addons: p.addons.filter((a) => a !== idTexto) }))
+        );
+      } catch {
+        alert("No se pudo quitar el adicional de los productos que lo usan. Intenta de nuevo.");
+        return;
+      }
+    }
+
     eliminarMutation.mutate(id);
   }
 
   // Filtrado + orden alfabético: se ordena por nombre para que la posición de cada
-  // tarjeta sea siempre la misma, sin importar si cambia su disponibilidad
+  // tarjeta sea siempre la misma, sin importar si cambia su disponibilidad.
+  // "Todas" NO incluye los adicionales: esos se ven solo en el chip "Adicionales".
   const productosFiltrados = useMemo(() => {
     const q = normalizar(busqueda.trim());
     return productos
       .filter((p) => {
         const coincideTexto = !q || normalizar(p.name).includes(q);
-        const coincideCategoria = categoriaFiltro === "Todas" || p.category === categoriaFiltro;
+        const coincideCategoria =
+          categoriaFiltro === "Todas"
+            ? p.category !== CATEGORIA_ADICIONALES
+            : p.category === categoriaFiltro;
         return coincideTexto && coincideCategoria;
       })
       .sort((a, b) => normalizar(a.name).localeCompare(normalizar(b.name)));
@@ -660,6 +670,9 @@ export default function AdminMenu() {
       addons: nuevoProducto.addons,
     });
   }
+
+  // ¿El formulario de "Nuevo" está creando un adicional?
+  const creandoAdicional = nuevoProducto.category === CATEGORIA_ADICIONALES;
 
   return (
     <div className="menu-admin">
@@ -717,7 +730,7 @@ export default function AdminMenu() {
         {mostrarForm && (
           <div className="modal-backdrop" onClick={solicitarCerrarModal}>
             <form className="ticket-panel modal-panel" onSubmit={handleCrearProducto} onClick={(e) => e.stopPropagation()}>
-              <h2>Nuevo producto</h2>
+              <h2>{creandoAdicional ? "Nuevo adicional" : "Nuevo producto"}</h2>
 
               {confirmarDescartar && (
                 <div className="discard-warning">
@@ -738,7 +751,7 @@ export default function AdminMenu() {
                   <label>Nombre</label>
                   <input
                     type="text"
-                    placeholder="Ej. Chilaquilitos"
+                    placeholder={creandoAdicional ? "Ej. Leche de almendras" : "Ej. Chilaquilitos"}
                     value={nuevoProducto.name}
                     onChange={(e) => setNuevoProducto({ ...nuevoProducto, name: e.target.value })}
                   />
@@ -755,7 +768,15 @@ export default function AdminMenu() {
                   <label>Categoría</label>
                   <select
                     value={nuevoProducto.category}
-                    onChange={(e) => setNuevoProducto({ ...nuevoProducto, category: e.target.value })}
+                    onChange={(e) => {
+                      const categoria = e.target.value;
+                      // Un adicional no puede tener adicionales: si se elige esa categoría se limpia la lista
+                      setNuevoProducto({
+                        ...nuevoProducto,
+                        category: categoria,
+                        addons: categoria === CATEGORIA_ADICIONALES ? [] : nuevoProducto.addons,
+                      });
+                    }}
                   >
                     <option value="">Selecciona...</option>
                     {CATEGORIAS.map((cat) => (
@@ -773,12 +794,14 @@ export default function AdminMenu() {
                   />
                 </div>
 
-                {/* Adicionales: dropdown con el catálogo o crear uno nuevo */}
-                <AddonSelector
-                  value={nuevoProducto.addons}
-                  onChange={(addons) => setNuevoProducto((prev) => ({ ...prev, addons }))}
-                  catalogo={addonsCatalogo}
-                />
+                {/* Adicionales: solo para productos normales (un adicional no lleva adicionales) */}
+                {!creandoAdicional && (
+                  <AddonSelector
+                    value={nuevoProducto.addons}
+                    onChange={(addons) => setNuevoProducto((prev) => ({ ...prev, addons }))}
+                    adicionales={adicionales}
+                  />
+                )}
 
                 {/* Imagen del producto nuevo */}
                 <div className="field field-full">
@@ -814,14 +837,14 @@ export default function AdminMenu() {
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={crearMutation.isPending || subiendoImagenNueva}>
-                  {crearMutation.isPending ? "Guardando..." : "Guardar producto"}
+                  {crearMutation.isPending ? "Guardando..." : creandoAdicional ? "Guardar adicional" : "Guardar producto"}
                 </button>
               </div>
             </form>
           </div>
         )}
 
-        {/* Búsqueda + filtro de categoría */}
+        {/* Búsqueda + filtro de categoría (el chip "Adicionales" sale solo, viene de CATEGORIAS) */}
         <div className="filters-row">
           <div className="search-box">
             <Search size={16} className="icon-search" />
@@ -872,7 +895,7 @@ export default function AdminMenu() {
               <ProductCard
                 key={prod.id}
                 producto={prod}
-                addonsCatalogo={addonsCatalogo}
+                adicionales={adicionales}
                 onGuardarEdicion={handleGuardarEdicion}
                 onEliminar={handleEliminar}
                 guardando={editarMutation.isPending && editarMutation.variables?.id === prod.id}
