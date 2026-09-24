@@ -34,7 +34,7 @@ interface ItemPedido {
 const ESTADOS = ["En espera", "En preparacion", "Completado", "Entregado"];
 const CANCELADO = "Cancelado";
 const OCULTOS_KEY = "pedidos_ocultos_manual";
-const PREFIJO_CANCELACION = "Motivo de cancelacion: ";
+const PREFIJO_CANCELACION = "Motivo de cancelación: ";
 
 function estadoIndex(status: string) {
   const i = ESTADOS.indexOf(status);
